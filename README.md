@@ -27,11 +27,13 @@ This is an advanced web application that uses a multi-agent AI system to generat
 This project is built as a modern, single-page application using **React** and **TypeScript**.
 
 -   **Frontend**: Built with Vite, React, and styled with Tailwind CSS for rapid, responsive UI development.
+-   **Component-Based Architecture**: The UI is built with a library of reusable, styled components (e.g., `Button`, `Card`, `Input`) located in `/components/ui`. This promotes consistency and simplifies theming.
 -   **AI Services**: The application features a modular AI service architecture.
     -   A central `aiService.ts` acts as a facade, allowing the application to be provider-agnostic.
     -   The current implementation uses the **Gemini API** via the `@google/genai` SDK, located in `services/providers/gemini.ts`.
     -   Adding a new provider (e.g., OpenAI) would only require a new provider file and a one-line change in `config.ts`.
--   **Multi-Agent System**: The branding workflow is broken down into a series of tasks, each handled by a specialized AI "agent" with a specific role and model, as defined in `config.ts` and documented in `AGENTS.md`. The orchestration of these agents is managed by the main React component, `BrandGenerator.tsx`, which directs the workflow, calls the appropriate agent for each step, and collates the results.
+-   **Multi-Agent System**: The branding workflow is broken down into a series of tasks, each handled by a specialized AI "agent" with a specific role and model, as defined in `config.ts` and documented in `AGENTS.md`.
+-   **Orchestration**: The main `BrandGenerator.tsx` component acts as a state machine, orchestrating the workflow by rendering modular "stage" components (e.g., `MissionStage`, `NameSuggestionStage`) from `/components/generator`. These stage components handle the UI and logic for each specific step, calling the appropriate AI agents as needed.
 -   **Backend (Simulated)**: To provide a seamless, out-of-the-box development experience, the project includes a comprehensive mock backend in `services/apiService.ts`. This service uses **localStorage** to simulate a real database, handling user authentication, session management, and CRUD operations for brand identities and analytics. This allows the full application to be run and tested locally without any backend setup.
 -   **Production Backend Guide**: For developers who wish to deploy this application in a production environment, a detailed prompt for generating the necessary serverless backend on Google Cloud is provided in `backend_prompt.md`. This prompt outlines the required database schema (see `database_schema.sql`) and API endpoints.
 

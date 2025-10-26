@@ -72,7 +72,8 @@ The generated brand bible will include:
     -   Uses the Gemini API via the `@google/genai` SDK.
     -   A modular `aiService.ts` abstracts the provider, allowing for easy swapping.
     -   `config.ts` maps agent roles to specific model names (detailed in `AGENTS.md`).
--   **Orchestration**: The primary orchestrator of the multi-agent system is the `BrandGenerator.tsx` component. It manages the application state, directs the user workflow through various stages, calls the appropriate AI service functions (agents) at each stage, and assembles their outputs into the final brand bible.
+-   **Orchestration**: The primary orchestrator of the multi-agent system is the `BrandGenerator.tsx` component, which acts as a stateful container. It manages the application state and directs the user workflow through various stages by rendering specific "stage" components (e.g., `MissionStage`, `NameSuggestionStage`). These modular components, located in `/components/generator`, encapsulate the UI and logic for each step, including calls to the AI service (agents).
+-   **UI Component Library**: The application utilizes a set of reusable UI components (e.g., `Button`, `Card`, `Input`) located in `/components/ui` to ensure visual consistency and separate styling concerns from application logic.
 -   **Backend (Mocked)**:
     -   A comprehensive mock API is implemented in `services/apiService.ts`.
     -   It uses `localStorage` to simulate a database, providing persistence for users, brand identities, and analytics events across browser sessions.

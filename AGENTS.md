@@ -1,6 +1,6 @@
 # AI Agent Architecture
 
-This document provides a detailed breakdown of the different AI agents that collaborate to create the brand identity. The system is designed as a multi-agent workflow where each agent has a specialized role. The specific model for each role is defined in `config.ts`, making the architecture flexible and easy to update. The orchestration of these agents—calling them in the correct sequence and managing the data flow between them—is handled by the application's frontend code, primarily within the `BrandGenerator.tsx` component.
+This document provides a detailed breakdown of the different AI agents that collaborate to create the brand identity. The system is designed as a multi-agent workflow where each agent has a specialized role. The specific model for each role is defined in `config.ts`, making the architecture flexible and easy to update. The orchestration of these agents—calling them in the correct sequence and managing the data flow between them—is handled by the application's frontend code. The main `BrandGenerator.tsx` component manages the overall state and workflow, while its modular child "stage" components (e.g., `MissionStage`, `NameSuggestionStage`) handle the specific UI and trigger the appropriate agent for each step.
 
 ---
 
