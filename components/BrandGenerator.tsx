@@ -10,10 +10,12 @@ import {
   regenerateFontPairing,
 } from '../services/aiService';
 import { checkDomainAvailability, getSuggestedTld } from '../services/domainService';
+import * as apiService from '../services/apiService';
 import type { DomainAvailability } from '../services/domainService';
 import { generateBrandGuideHtml } from '../utils/generateBrandGuideHtml';
 import type { BrandBible, BrandVoice, RegenerationRequest } from '../types';
 import { useError } from '../contexts/ErrorContext';
+import { useAuth } from '../contexts/AuthContext';
 
 import { ColorPalette } from './ColorPalette';
 import { FontPairings } from './FontPairings';
@@ -23,6 +25,8 @@ import { RegenerateModal } from './RegenerateModal';
 
 interface BrandGeneratorProps {
   onBrandGenerated: (brandBible: BrandBible) => void;
+  initialBrand: BrandBible | null;
+  setInitialBrand: (brand: BrandBible | null) => void;
 }
 
 type Stage = 'mission' | 'names' | 'voice' | 'generating' | 'done';
@@ -37,7 +41,7 @@ const LoadingSpinner: React.FC<{ size?: string }> = ({ size = 'h-5 w-5' }) => (
 
 const TLD_OPTIONS = ['.com', '.io', '.ai', '.app', '.co', '.net', '.org', '.xyz', '.shop', '.co.za', '.com.na', '.co.uk'];
 
-export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated }) => {
+export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated, initialBrand, setInitialBrand }) => {
   const [stage, setStage] = useState<Stage>('mission');
   const [mission, setMission] = useState('');
   const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
@@ -57,8 +61,21 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [regenerationRequest, setRegenerationRequest] = useState<RegenerationRequest | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   const { showError } = useError();
+  const { isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (initialBrand) {
+      setBrandBible(initialBrand);
+      setMission(initialBrand.mission || '');
+      setSelectedName(initialBrand.companyName || '');
+      setStage('done');
+      // Clear the initial brand so it doesn't reload on component re-render
+      setInitialBrand(null);
+    }
+  }, [initialBrand, setInitialBrand]);
 
   useEffect(() => {
     getSuggestedTld().then(tld => {
@@ -77,10 +94,8 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
 
   const handleMissionSubmit = () => {
     if (selectedName.trim()) {
-      // User provided a name, skip to voice selection
       handleNameSelection(selectedName.trim());
     } else {
-      // User did not provide a name, go to name suggestions
       handleSuggestNames();
     }
   };
@@ -133,7 +148,6 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
       setStage('voice');
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to generate brand voices. Proceeding without this step.");
-      // If voice generation fails, skip to final generation
       await handleGenerateBrand(finalName, undefined);
     } finally {
       setIsLoading(false);
@@ -170,8 +184,11 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
         })
       );
 
+      // Fix: Add mission and companyName to the BrandBible object upon creation.
       const finalBible: BrandBible = {
         ...identityText,
+        mission,
+        companyName: name,
         brandVoice: voice,
         primaryLogoUrl,
         secondaryMarkUrls,
@@ -180,6 +197,14 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
 
       setBrandBible(finalBible);
       setStage('done');
+      
+      // Track analytics event
+      apiService.trackAnalyticsEvent('BRAND_CREATED', {
+          colors: finalBible.colorPalette.map(c => c.hex),
+          headerFont: finalBible.fontPairing.header,
+          bodyFont: finalBible.fontPairing.body,
+      });
+
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to generate brand identity.");
       setStage('mission');
@@ -250,6 +275,21 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
     } finally {
         setIsRegenerating(false);
         setRegenerationRequest(null);
+    }
+  };
+  
+  const handleSaveBrand = async () => {
+    if (!brandBible || !mission || !selectedName) return;
+    setIsSaving(true);
+    try {
+        const savedBrand = await apiService.saveBrand(brandBible, mission, selectedName);
+        // Update the current brandBible with the ID from the backend
+        setBrandBible(prev => prev ? { ...prev, id: savedBrand.id } : null);
+        showError("Brand saved successfully!"); // Using showError for success message for simplicity
+    } catch(err) {
+        showError(err instanceof Error ? err.message : "Failed to save brand.");
+    } finally {
+        setIsSaving(false);
     }
   };
 
@@ -429,6 +469,11 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
               <div className="mt-6 flex justify-center items-center gap-4">
                   <button onClick={handleDownload} className="px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors">Download Brand Guide</button>
                    <button onClick={handleStartOver} className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors">Start Over</button>
+                   {isAuthenticated && (
+                     <button onClick={handleSaveBrand} disabled={isSaving} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-500 transition-colors">
+                        {isSaving ? 'Saving...' : (brandBible.id ? 'Saved' : 'Save to Library')}
+                     </button>
+                   )}
               </div>
             </div>
             <ColorPalette 

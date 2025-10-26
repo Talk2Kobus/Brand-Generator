@@ -24,6 +24,10 @@ export interface BrandIdentityText {
 }
 
 export interface BrandBible extends BrandIdentityText {
+  id?: string; // Optional ID for saved brands
+  // Fix: Add optional mission and companyName to BrandBible type.
+  mission?: string; // The company's mission statement
+  companyName?: string; // The company's name
   brandVoice?: BrandVoice;
   primaryLogoUrl: string;
   secondaryMarkUrls: string[];
@@ -57,4 +61,24 @@ export interface RegenerationRequest {
   type: RegenerationType;
   title: string;
   index?: number;
+}
+
+// --- NEW TYPES FOR AUTH & LIBRARY ---
+
+export interface User {
+  id: string;
+  email: string;
+}
+
+export interface SavedBrand {
+    id: string;
+    companyName: string;
+    primaryLogoUrl: string;
+    primaryColor: string;
+}
+
+export interface AnalyticsData {
+    totalBrands: number;
+    colorFrequency: { hex: string; count: number }[];
+    fontFrequency: { name: string; type: 'header' | 'body'; count: number }[];
 }

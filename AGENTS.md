@@ -1,6 +1,6 @@
 # AI Agent Architecture
 
-This document provides a detailed breakdown of the different AI agents that collaborate to create the brand identity. The system is designed as a multi-agent workflow where each agent has a specialized role, and the specific model for each role is defined in `config.ts`, making the architecture flexible and easy to update.
+This document provides a detailed breakdown of the different AI agents that collaborate to create the brand identity. The system is designed as a multi-agent workflow where each agent has a specialized role. The specific model for each role is defined in `config.ts`, making the architecture flexible and easy to update. The orchestration of these agents—calling them in the correct sequence and managing the data flow between them—is handled by the application's frontend code, primarily within the `BrandGenerator.tsx` component.
 
 ---
 
@@ -14,7 +14,7 @@ This agent provides creative business name ideas based on the user's initial con
 -   **Core Prompt**: `"Based on the following business idea, suggest 5 creative, memorable, and available-sounding business names. The mission is: '[USER_MISSION]'. Output a JSON array of strings."`
 -   **Output Configuration**:
     -   `responseMimeType`: `"application/json"`
-    -   `responseSchema`: A schema that enforces the output is an object containing an array of strings (the names).
+    -   `responseSchema`: A schema that enforces the output is an object containing a `names` property, which is an array of strings.
 
 ---
 
@@ -28,7 +28,7 @@ This agent defines the brand's personality by creating distinct voice archetypes
 -   **Core Prompt**: `"Based on the company name '[COMPANY_NAME]' and its mission '[USER_MISSION]', generate 3 distinct brand voice archetypes. For each, provide a name (e.g., 'The Sage'), a one-sentence description, and 3-4 keywords (e.g., 'Wise, Authoritative, Guiding, Trustworthy'). Output this as a structured JSON array."`
 -   **Output Configuration**:
     -   `responseMimeType`: `"application/json"`
-    -   `responseSchema`: A schema defining an array of voice objects, each with a name, description, and keywords.
+    -   `responseSchema`: A schema that enforces the output is an object containing a `voices` property, which is an array of voice objects (each with a name, description, and keywords).
 
 ---
 
@@ -65,7 +65,7 @@ This agent handles the iterative refinement of visual elements by generating new
 -   **Model**: `CREATIVE_DIRECTOR` (configurable in `config.ts`, default: `gemini-2.5-flash`)
 -   **Role**: To quickly regenerate a single image prompt for a logo or mockup based on a user's change request and the existing brand context (including brand voice).
 -   **Trigger**: Called when a user submits the "Regenerate" form for a specific visual asset.
--   **Core Prompt**: `"You are a creative director. Based on the following context, regenerate an image prompt for a [ITEM_DESCRIPTION]. The user's specific change request is: '[USER_REQUEST]'. Context: [BRAND_BIBLE_CONTEXT] Output only the new, detailed, and photorealistic image prompt."`
+-   **Core Prompt**: `"You are a creative director. Based on the following context, regenerate an image prompt for a [ITEM_DESCRIPTION]. The user's specific change request is: '[USER_REQUEST]'. Context: [BRAND_BIBLE_CONTEXT] Output only the new, detailed, and photorealistic image prompt. Do not include any other text or explanation."`
 -   **Output Configuration**: Outputs a plain text string (the new prompt).
 
 ---
@@ -80,7 +80,7 @@ This agent is a specialized version of the Brand Strategist, focused on regenera
 -   **Core Prompt**: `"Based on the brand context, regenerate the [color palette / font pairing]. The user has requested: '[USER_REQUEST]'. Context: [BRAND_BIBLE_CONTEXT]. Output JSON that adheres to the schema."`
 -   **Output Configuration**:
     -   `responseMimeType`: `"application/json"`
-    -   `responseSchema`: The specific sub-schema for either `colorPalette` or `fontPairing`.
+    -   `responseSchema`: A schema for a root object containing the specific sub-schema needed. For example, when regenerating colors, the schema is for an object `{ "colorPalette": [ ... ] }`.
 
 ---
 

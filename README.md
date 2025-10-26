@@ -1,10 +1,13 @@
 # Brand Identity Generator & AI Chat
 
-This is an advanced web application that uses a multi-agent AI system to generate a complete brand identity based on a simple company mission. It also features an integrated AI chat assistant for branding advice.
+This is an advanced web application that uses a multi-agent AI system to generate a complete brand identity based on a simple company mission. It also features user authentication, a personal library for saved brands, an analytics dashboard, and an integrated AI chat assistant.
 
 ## Features
 
 -   **Multi-Step Guided Workflow**: A clean, step-by-step process guides the user from idea to complete brand identity.
+-   **User Authentication**: Secure sign-up and login with email/password or social providers (Google, Facebook).
+-   **Personal Brand Library**: Authenticated users can save their generated brand identities to a personal library and load them back for viewing or editing.
+-   **Analytics Dashboard**: See community-wide trends, including the most popular colors and fonts used in brand generation.
 -   **AI Name Suggestion**: Enter a business idea and get a list of creative, memorable business names.
 -   **Domain Availability Check**: Check if suggested names are available with a desired TLD (e.g., .com, .io, .co.za). Includes auto-suggestion of TLD based on user location.
 -   **Brand Voice & Tone Definition**: The AI suggests brand archetypes (e.g., "The Sage," "The Jester") to define the brand's personality, which influences all subsequent visual generation.
@@ -27,8 +30,9 @@ This project is built as a modern, single-page application using **React** and *
     -   A central `aiService.ts` acts as a facade, allowing the application to be provider-agnostic.
     -   The current implementation uses the **Gemini API** via the `@google/genai` SDK, located in `services/providers/gemini.ts`.
     -   Adding a new provider (e.g., OpenAI) would only require a new provider file and a one-line change in `config.ts`.
--   **Multi-Agent System**: The branding workflow is broken down into a series of tasks, each handled by a specialized AI "agent" with a specific role and model, defined in `config.ts` and documented in `AGENTS.md`. This allows for using the best model for each specific task (e.g., a powerful model for complex JSON generation, a faster model for chat).
--   **Backend (Simulated)**: The domain availability check feature requires a secure backend proxy to protect API keys. This project includes a **mocked** `domainService.ts` that simulates this interaction. For developers looking to make this feature fully functional, a detailed prompt for generating the necessary serverless function is provided in `backend_prompt.md`.
+-   **Multi-Agent System**: The branding workflow is broken down into a series of tasks, each handled by a specialized AI "agent" with a specific role and model, as defined in `config.ts` and documented in `AGENTS.md`. The orchestration of these agents is managed by the main React component, `BrandGenerator.tsx`, which directs the workflow, calls the appropriate agent for each step, and collates the results.
+-   **Backend (Simulated)**: To provide a seamless, out-of-the-box development experience, the project includes a comprehensive mock backend in `services/apiService.ts`. This service uses **localStorage** to simulate a real database, handling user authentication, session management, and CRUD operations for brand identities and analytics. This allows the full application to be run and tested locally without any backend setup.
+-   **Production Backend Guide**: For developers who wish to deploy this application in a production environment, a detailed prompt for generating the necessary serverless backend on Google Cloud is provided in `backend_prompt.md`. This prompt outlines the required database schema (see `database_schema.sql`) and API endpoints.
 
 ## Getting Started
 
