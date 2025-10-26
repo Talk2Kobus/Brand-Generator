@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { 
+  suggestBusinessNames,
   generateBrandIdentity, 
   generateImage, 
   regenerateLogoPrompt, 
@@ -24,19 +25,46 @@ interface BrandGeneratorProps {
   onBrandGenerated: (bible: BrandBible) => void;
 }
 
+type NameSuggestionStep = 'idle' | 'suggesting' | 'suggested';
+
 export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated }) => {
   const [mission, setMission] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [brandBible, setBrandBible] = useState<BrandBible | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { showError, hideError } = useError();
+  
+  const [nameSuggestionStep, setNameSuggestionStep] = useState<NameSuggestionStep>('idle');
+  const [suggestedNames, setSuggestedNames] = useState<string[]>([]);
 
   const [regenerationRequest, setRegenerationRequest] = useState<RegenerationRequest | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
+  const handleSuggestNames = useCallback(async () => {
+    if (!mission.trim()) {
+        showError('Please describe your business mission first.');
+        return;
+    }
+    setNameSuggestionStep('suggesting');
+    try {
+        const names = await suggestBusinessNames(mission);
+        setSuggestedNames(names);
+        setNameSuggestionStep('suggested');
+    } catch(err) {
+        console.error(err);
+        showError(err instanceof Error ? err.message : 'Could not suggest names.');
+        setNameSuggestionStep('idle');
+    }
+  }, [mission, showError]);
+
   const handleInitialGenerate = useCallback(async () => {
     if (!mission.trim()) {
       showError('Please enter a company mission.');
+      return;
+    }
+     if (!companyName.trim()) {
+      showError('Please enter a company name or select a suggestion.');
       return;
     }
 
@@ -44,7 +72,7 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
     setBrandBible(null);
 
     try {
-      const identityText: BrandIdentityText = await generateBrandIdentity(mission);
+      const identityText: BrandIdentityText = await generateBrandIdentity(mission, companyName);
       const imagePrompts = [
         identityText.primaryLogoPrompt,
         ...identityText.secondaryMarkPrompts,
@@ -73,7 +101,7 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
     } finally {
       setIsLoading(false);
     }
-  }, [mission, onBrandGenerated, showError]);
+  }, [mission, companyName, onBrandGenerated, showError]);
 
   const handleRequestRegeneration = useCallback((req: RegenerationRequest) => {
     setRegenerationRequest(req);
@@ -87,14 +115,14 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
     try {
       switch (regenerationRequest.type) {
         case 'primaryLogo': {
-          const newPrompt = await regenerateLogoPrompt(mission, brandBible, changeRequest, 'primary');
+          const newPrompt = await regenerateLogoPrompt(mission, companyName, brandBible, changeRequest, 'primary');
           const newUrl = await generateImage(newPrompt);
           setBrandBible(prev => prev ? { ...prev, primaryLogoUrl: newUrl, primaryLogoPrompt: newPrompt } : null);
           break;
         }
         case 'secondaryMark': {
           const index = regenerationRequest.index!;
-          const newPrompt = await regenerateLogoPrompt(mission, brandBible, changeRequest, 'secondary');
+          const newPrompt = await regenerateLogoPrompt(mission, companyName, brandBible, changeRequest, 'secondary');
           const newUrl = await generateImage(newPrompt);
           const newUrls = [...brandBible.secondaryMarkUrls];
           newUrls[index] = newUrl;
@@ -105,7 +133,7 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
         }
         case 'mockup': {
             const index = regenerationRequest.index!;
-            const newPrompt = await regenerateMockupPrompt(mission, brandBible, changeRequest, brandBible.mockupUrls[index].title);
+            const newPrompt = await regenerateMockupPrompt(mission, companyName, brandBible, changeRequest, brandBible.mockupUrls[index].title);
             const newUrl = await generateImage(newPrompt);
             const newMockups = [...brandBible.mockupUrls];
             newMockups[index] = { ...newMockups[index], url: newUrl };
@@ -115,12 +143,12 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
             break;
         }
         case 'colorPalette': {
-            const newPalette = await regenerateColorPalette(mission, brandBible, changeRequest);
+            const newPalette = await regenerateColorPalette(mission, companyName, brandBible, changeRequest);
             setBrandBible(prev => prev ? { ...prev, colorPalette: newPalette } : null);
             break;
         }
         case 'fontPairing': {
-            const newFonts = await regenerateFontPairing(mission, brandBible, changeRequest);
+            const newFonts = await regenerateFontPairing(mission, companyName, brandBible, changeRequest);
             const updatedBible = { ...brandBible, fontPairing: newFonts };
             setBrandBible(updatedBible);
             onBrandGenerated(updatedBible); // Propagate font change for dynamic loading
@@ -134,7 +162,7 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
       setIsRegenerating(false);
       setRegenerationRequest(null);
     }
-  }, [regenerationRequest, brandBible, mission, onBrandGenerated, showError]);
+  }, [regenerationRequest, brandBible, mission, companyName, onBrandGenerated, showError]);
 
   const handleDownload = async () => {
     if (!brandBible) return;
@@ -243,21 +271,71 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
   return (
     <div className="space-y-8">
       <div className="bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700">
-        <h2 className="text-2xl font-bold text-white mb-4">Your Company's Mission</h2>
+        <h2 className="text-2xl font-bold text-white mb-1">Step 1: Your Mission</h2>
         <p className="text-gray-400 mb-4">
-          Describe your business, its values, and what it aims to achieve. The more detail you provide, the better the brand identity will be.
+          Describe your business, its values, and what it aims to achieve. This will be used to generate your brand identity.
         </p>
         <textarea
           value={mission}
           onChange={(e) => setMission(e.target.value)}
           placeholder="e.g., 'To empower small businesses with affordable and easy-to-use software solutions...'"
-          className="w-full h-32 p-4 bg-gray-900 border border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 transition-colors duration-200 resize-none"
+          className="w-full h-24 p-4 bg-gray-900 border border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 transition-colors duration-200 resize-none"
           disabled={isLoading}
         />
-        <div className="mt-4 flex flex-wrap items-center gap-4">
+        
+        <h2 className="text-2xl font-bold text-white mt-6 mb-1">Step 2: Your Company Name</h2>
+        <p className="text-gray-400 mb-4">
+          Enter your company name, or get some AI-powered suggestions based on your mission.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4">
+            <input
+              type="text"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              placeholder="e.g., 'Innovatech Solutions'"
+              className="flex-grow p-3 bg-gray-900 border border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 transition-colors duration-200"
+              disabled={isLoading}
+            />
+            <button
+              onClick={handleSuggestNames}
+              disabled={!mission || nameSuggestionStep === 'suggesting' || isLoading}
+              className="w-full sm:w-auto inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-600 hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-cyan-500 disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed transition-all"
+            >
+              {nameSuggestionStep === 'suggesting' ? (
+                 <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  Suggesting...
+                </>
+              ) : (
+                <>
+                 <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+                  Suggest Names
+                </>
+              )}
+            </button>
+        </div>
+
+        {nameSuggestionStep === 'suggested' && (
+            <div className="mt-4 p-4 bg-gray-900/50 rounded-lg">
+                <p className="text-sm text-gray-300 mb-3">Click a name to use it, or regenerate for more ideas:</p>
+                <div className="flex flex-wrap gap-2">
+                    {suggestedNames.map((name, i) => (
+                        <button key={i} onClick={() => setCompanyName(name)} className="px-3 py-1.5 text-sm bg-gray-700 text-gray-200 rounded-full hover:bg-cyan-600 hover:text-white transition-colors">
+                            {name}
+                        </button>
+                    ))}
+                </div>
+                 {/* FIX: This comparison was always false due to type narrowing. Changed to disable during main generation loading state for consistency. */}
+                 <button onClick={handleSuggestNames} disabled={isLoading} className="text-sm text-cyan-400 hover:text-cyan-300 mt-3 disabled:opacity-50">
+                    Regenerate suggestions
+                </button>
+            </div>
+        )}
+
+        <div className="mt-6 border-t border-gray-700 pt-6 flex flex-wrap items-center gap-4">
             <button
               onClick={handleInitialGenerate}
-              disabled={isLoading || !mission}
+              disabled={isLoading || !mission || !companyName}
               className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-all"
             >
               {isLoading ? (

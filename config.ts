@@ -10,6 +10,9 @@ export const AI_PROVIDER: 'GEMINI' = 'GEMINI'; // Future options: 'OPEN_AI', 'AN
  * This allows for easy swapping of model versions or tiers without changing the application logic.
  */
 export const MODELS = {
+  // Used for suggesting creative business names.
+  NAME_GENERATOR: 'gemini-2.5-flash',
+
   // Used for the initial, complex brand bible generation. Needs strong JSON/Schema support.
   BRAND_STRATEGIST: 'gemini-2.5-pro',
   

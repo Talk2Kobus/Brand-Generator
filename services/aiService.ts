@@ -27,6 +27,7 @@ if (!providers[AI_PROVIDER]) {
  * remaining completely unaware of the specific provider being used.
  */
 export const {
+  suggestBusinessNames,
   generateBrandIdentity,
   generateImage,
   createChat,

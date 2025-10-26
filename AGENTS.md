@@ -4,21 +4,35 @@ This document provides a detailed breakdown of the different AI agents that coll
 
 ---
 
-### Agent 1: The Brand Strategist
+### Agent 1: The Name Generator
+
+This agent provides creative business name ideas based on the user's initial concept.
+
+-   **Model**: `NAME_GENERATOR` (configurable in `config.ts`, default: `gemini-2.5-flash`)
+-   **Role**: To interpret the user's company mission and suggest a list of creative, available-sounding business names.
+-   **Trigger**: Called when the user clicks the "Suggest Names" button.
+-   **Core Prompt**: `"Based on the following business idea, suggest 5 creative, memorable, and available-sounding business names. The mission is: '[USER_MISSION]'. Output a JSON array of strings."`
+-   **Output Configuration**:
+    -   `responseMimeType`: `"application/json"`
+    -   `responseSchema`: A schema that enforces the output is an object containing an array of strings (the names).
+
+---
+
+### Agent 2: The Brand Strategist
 
 This is the primary agent responsible for creating the foundational, text-based brand identity.
 
 -   **Model**: `BRAND_STRATEGIST` (configurable in `config.ts`, default: `gemini-2.5-pro`)
--   **Role**: To interpret the user's company mission and generate a comprehensive, structured JSON object containing all the textual elements of the brand bible.
+-   **Role**: To interpret the user's company mission and name, and generate a comprehensive, structured JSON object containing all the textual elements of the brand bible.
 -   **Trigger**: Called once when the user clicks the initial "Generate Brand" button.
--   **Core Prompt**: `"You are a world-class branding expert. Based on the following company mission, generate a complete brand identity bible. The mission is: '[USER_MISSION]'"`
+-   **Core Prompt**: `"You are a world-class branding expert. Based on the following company name and mission, generate a complete brand identity bible. Company Name: '[USER_NAME]'. The mission is: '[USER_MISSION]'"`
 -   **Output Configuration**:
     -   `responseMimeType`: `"application/json"`
     -   `responseSchema`: A detailed schema that enforces the structure of the output, including color palettes, font pairings, and various image prompts.
 
 ---
 
-### Agent 2: The Visual Artist
+### Agent 3: The Visual Artist
 
 This agent is responsible for turning text prompts into high-quality images.
 
@@ -30,7 +44,7 @@ This agent is responsible for turning text prompts into high-quality images.
 
 ---
 
-### Agent 3: The Creative Director
+### Agent 4: The Creative Director
 
 This agent handles the iterative refinement of visual elements by generating new prompts based on user feedback.
 
@@ -42,21 +56,21 @@ This agent handles the iterative refinement of visual elements by generating new
 
 ---
 
-### Agent 4: The Design Specialist
+### Agent 5: The Design Specialist
 
 This agent is a specialized version of the Brand Strategist, focused on regenerating structured data like colors and fonts.
 
 -   **Model**: `DESIGN_SPECIALIST` (configurable in `config.ts`, default: `gemini-2.5-pro`)
 -   **Role**: To regenerate the `colorPalette` or `fontPairing` based on user feedback, ensuring the output remains in the correct JSON format.
 -   **Trigger**: Called when a user requests to regenerate the Color Palette or Typography.
--   **Core Prompt**: `"Based on the company mission '[USER_MISSION]' and their existing brand identity, regenerate the [color palette / font pairing]. The user has requested: '[USER_REQUEST]'. Output JSON that adheres to the schema."`
+-   **Core Prompt**: `"Based on the company '[COMPANY_NAME]' with mission '[USER_MISSION]' and their existing brand identity, regenerate the [color palette / font pairing]. The user has requested: '[USER_REQUEST]'. Output JSON that adheres to the schema."`
 -   **Output Configuration**:
     -   `responseMimeType`: `"application/json"`
     -   `responseSchema`: The specific sub-schema for either `colorPalette` or `fontPairing`.
 
 ---
 
-### Agent 5: The Branding Assistant
+### Agent 6: The Branding Assistant
 
 This agent powers the conversational AI chat feature, providing real-time advice and answering questions.
 

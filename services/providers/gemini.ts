@@ -60,10 +60,35 @@ const brandIdentitySchema = {
   required: ["colorPalette", "fontPairing", "primaryLogoPrompt", "secondaryMarkPrompts", "mockupPrompts"],
 };
 
-export async function generateBrandIdentity(mission: string): Promise<BrandIdentityText> {
+
+export async function suggestBusinessNames(mission: string): Promise<string[]> {
+    const response = await ai.models.generateContent({
+        model: MODELS.NAME_GENERATOR,
+        contents: `Based on the following business idea, suggest 5 creative, memorable, and available-sounding business names. The mission is: "${mission}". Output a JSON array of strings.`,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    names: {
+                        type: Type.ARRAY,
+                        items: { type: Type.STRING }
+                    }
+                },
+                required: ["names"]
+            },
+        },
+    });
+    return JSON.parse(response.text).names;
+}
+
+
+export async function generateBrandIdentity(mission: string, companyName: string): Promise<BrandIdentityText> {
+  const prompt = `You are a world-class branding expert. Based on the following company name and mission, generate a complete brand identity bible. Company Name: "${companyName}". The mission is: "${mission}"`;
+  
   const response = await ai.models.generateContent({
     model: MODELS.BRAND_STRATEGIST,
-    contents: `You are a world-class branding expert. Based on the following company mission, generate a complete brand identity bible. The mission is: "${mission}"`,
+    contents: prompt,
     config: {
       responseMimeType: "application/json",
       responseSchema: brandIdentitySchema,
@@ -127,8 +152,9 @@ export function createChat(): ChatSession {
 
 // --- REGENERATION FUNCTIONS ---
 
-async function regeneratePrompt(mission: string, currentIdentity: BrandBible, changeRequest: string, itemDescription: string): Promise<string> {
+async function regeneratePrompt(mission: string, companyName: string, currentIdentity: BrandBible, changeRequest: string, itemDescription: string): Promise<string> {
     const context = `
+      Company Name: "${companyName}"
       Original Mission: "${mission}"
       Current Colors: ${currentIdentity.colorPalette.map(c => c.name).join(', ')}
       Current Fonts: Header - ${currentIdentity.fontPairing.header}, Body - ${currentIdentity.fontPairing.body}
@@ -142,17 +168,17 @@ async function regeneratePrompt(mission: string, currentIdentity: BrandBible, ch
     return response.text.trim();
 }
 
-export const regenerateLogoPrompt = (mission: string, currentIdentity: BrandBible, changeRequest: string, logoType: 'primary' | 'secondary') => 
-    regeneratePrompt(mission, currentIdentity, changeRequest, `${logoType} logo`);
+export const regenerateLogoPrompt = (mission: string, companyName: string, currentIdentity: BrandBible, changeRequest: string, logoType: 'primary' | 'secondary') => 
+    regeneratePrompt(mission, companyName, currentIdentity, changeRequest, `${logoType} logo`);
 
-export const regenerateMockupPrompt = (mission: string, currentIdentity: BrandBible, changeRequest: string, mockupTitle: string) =>
-    regeneratePrompt(mission, currentIdentity, changeRequest, `${mockupTitle} mockup`);
+export const regenerateMockupPrompt = (mission: string, companyName: string, currentIdentity: BrandBible, changeRequest: string, mockupTitle: string) =>
+    regeneratePrompt(mission, companyName, currentIdentity, changeRequest, `${mockupTitle} mockup`);
 
 
-export async function regenerateColorPalette(mission: string, currentIdentity: BrandBible, changeRequest: string): Promise<ColorInfo[]> {
+export async function regenerateColorPalette(mission: string, companyName: string, currentIdentity: BrandBible, changeRequest: string): Promise<ColorInfo[]> {
     const response = await ai.models.generateContent({
         model: MODELS.DESIGN_SPECIALIST,
-        contents: `Based on the company mission "${mission}" and their existing brand identity (fonts: ${currentIdentity.fontPairing.header}/${currentIdentity.fontPairing.body}), regenerate the 5-color palette. The user has requested: "${changeRequest}". Output JSON that adheres to the schema.`,
+        contents: `Based on the company "${companyName}" with mission "${mission}" and their existing brand identity (fonts: ${currentIdentity.fontPairing.header}/${currentIdentity.fontPairing.body}), regenerate the 5-color palette. The user has requested: "${changeRequest}". Output JSON that adheres to the schema.`,
         config: {
             responseMimeType: "application/json",
             responseSchema: {type: Type.OBJECT, properties: { colorPalette: colorPaletteSchema }, required: ["colorPalette"]},
@@ -161,10 +187,10 @@ export async function regenerateColorPalette(mission: string, currentIdentity: B
     return JSON.parse(response.text).colorPalette;
 }
 
-export async function regenerateFontPairing(mission: string, currentIdentity: BrandBible, changeRequest: string): Promise<FontPairing> {
+export async function regenerateFontPairing(mission: string, companyName: string, currentIdentity: BrandBible, changeRequest: string): Promise<FontPairing> {
     const response = await ai.models.generateContent({
         model: MODELS.DESIGN_SPECIALIST,
-        contents: `Based on the company mission "${mission}" and their existing brand identity (colors: ${currentIdentity.colorPalette.map(c=>c.name).join(', ')}), regenerate the Google Font pairing. The user has requested: "${changeRequest}". Output JSON that adheres to the schema.`,
+        contents: `Based on the company "${companyName}" with mission "${mission}" and their existing brand identity (colors: ${currentIdentity.colorPalette.map(c=>c.name).join(', ')}), regenerate the Google Font pairing. The user has requested: "${changeRequest}". Output JSON that adheres to the schema.`,
         config: {
             responseMimeType: "application/json",
             responseSchema: {type: Type.OBJECT, properties: { fontPairing: fontPairingSchema }, required: ["fontPairing"]},

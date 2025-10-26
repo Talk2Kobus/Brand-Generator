@@ -6,6 +6,7 @@ A powerful, AI-driven application that generates a complete brand identity based
 
 ## Features
 
+-   **AI Name Suggestion**: Get creative, AI-powered business name suggestions based on your mission statement.
 -   **Comprehensive Brand Bible**: Generates a full brand identity from a single mission statement.
 -   **AI-Powered Content**:
     -   Uses a configurable **Brand Strategist** model (default: `Gemini 2.5 Pro`) to generate a structured "Brand Bible" including color palettes, font pairings, and detailed image prompts.

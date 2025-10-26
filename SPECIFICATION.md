@@ -13,29 +13,34 @@ The application is designed as a single-page application (SPA) with a clean, mod
 
 ## 2. Core Features
 
-### 2.1. Brand Identity Generation
+### 2.1. AI Name Suggestion
 
--   **Input**: The user provides a text-based "company mission" in a textarea.
+-   **Functionality**: Before generating a brand, users can optionally request AI-powered name suggestions based on their mission statement.
+-   **Process**: The application sends the mission to the **Name Generator** model, which returns a list of potential names. The user can select a name, regenerate the list, or proceed with their own.
+
+### 2.2. Brand Identity Generation
+
+-   **Input**: The user provides a text-based "company mission" and a company name.
 -   **Process**:
-    1.  The mission statement is sent to the configured **Brand Strategist** model.
+    1.  The mission and name are sent to the configured **Brand Strategist** model.
     2.  The model is instructed to return a structured JSON object ("Brand Bible") containing text-based assets.
     3.  This JSON object includes a color palette, font pairing, and multiple image prompts.
     4.  The application then uses the configured **Visual Artist** model to generate images for each received prompt.
 -   **Output**: A visually rich dashboard displaying the complete brand identity.
 
-### 2.2. Component-Specific Regeneration
+### 2.3. Component-Specific Regeneration
 
 -   **Functionality**: Users can regenerate any individual component of the brand bible without starting over.
 -   **Process**: A user's request for change is sent to the appropriate AI agent (**Creative Director** for prompts, **Design Specialist** for data) along with the existing brand context, ensuring a coherent and iterative design process.
 -   **Supported Components**: Primary Logo, Secondary Marks, Mockups, Color Palette, Font Pairings.
 
-### 2.3. AI Chat Assistant
+### 2.4. AI Chat Assistant
 
 -   **Functionality**: A dedicated view provides a chat interface for users to interact with a branding-focused AI assistant.
 -   **Model**: Powered by the configured **Branding Assistant** model, optimized for fast, conversational responses.
 -   **User Experience**: Features a familiar message-based UI with streaming responses for a real-time feel.
 
-### 2.4. Brand Bible Export
+### 2.5. Brand Bible Export
 
 -   **Functionality**: Users can download the complete generated brand identity as a single `.zip` file.
 -   **Contents**: The zip file contains all generated PNG images and a self-contained `brand-guide.html` file.
@@ -53,6 +58,7 @@ The application is designed as a single-page application (SPA) with a clean, mod
 ### 3.2. Key UI Components
 
 -   **Mission Input**: A large textarea with a "Generate" button that shows a loading state.
+-   **Name Suggestion**: An optional workflow with a text input, suggestion buttons, and a regeneration option.
 -   **Brand Dashboard**: A collection of well-structured cards for each brand element.
 -   **Regenerate Modal**: A focused dialog that captures user feedback for iterative design.
 -   **Chat Interface**: A scrollable message history with a text input and streaming responses.
@@ -87,6 +93,7 @@ The application features a flexible, provider-agnostic architecture for its AI s
 
 The application uses a multi-agent system, with roles and models defined in `config.ts`.
 
+-   **Name Generator**: Suggests creative business names based on the user's mission.
 -   **Brand Strategist**: Generates the initial structured text for the brand bible.
 -   **Visual Artist**: Generates all images from text prompts.
 -   **Creative Director**: Handles fast, context-aware regeneration of image prompts.
