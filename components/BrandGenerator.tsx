@@ -14,6 +14,11 @@ import { LogoDisplay } from './LogoDisplay';
 import { MockupDisplay } from './MockupDisplay';
 import { RegenerateModal } from './RegenerateModal';
 import { useError } from '../contexts/ErrorContext';
+import { generateBrandGuideHtml } from '../utils/generateBrandGuideHtml';
+
+// Declare global variables from included scripts
+declare var JSZip: any;
+declare var saveAs: any;
 
 interface BrandGeneratorProps {
   onBrandGenerated: (bible: BrandBible) => void;
@@ -23,10 +28,11 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
   const [mission, setMission] = useState('');
   const [brandBible, setBrandBible] = useState<BrandBible | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const { showError } = useError();
+  const { showError, hideError } = useError();
 
   const [regenerationRequest, setRegenerationRequest] = useState<RegenerationRequest | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const handleInitialGenerate = useCallback(async () => {
     if (!mission.trim()) {
@@ -130,6 +136,41 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
     }
   }, [regenerationRequest, brandBible, mission, onBrandGenerated, showError]);
 
+  const handleDownload = async () => {
+    if (!brandBible) return;
+    setIsDownloading(true);
+    hideError();
+
+    try {
+      const zip = new JSZip();
+
+      const addImageToZip = (fileName: string, dataUrl: string) => {
+        const base64Data = dataUrl.split(',')[1];
+        zip.file(fileName, base64Data, { base64: true });
+      };
+
+      addImageToZip('primary-logo.png', brandBible.primaryLogoUrl);
+      addImageToZip('secondary-mark-1.png', brandBible.secondaryMarkUrls[0]);
+      addImageToZip('secondary-mark-2.png', brandBible.secondaryMarkUrls[1]);
+      
+      brandBible.mockupUrls.forEach((mockup) => {
+          const fileName = `mockup-${mockup.title.toLowerCase().replace(/ /g, '-')}.png`;
+          addImageToZip(fileName, mockup.url);
+      });
+
+      const htmlContent = generateBrandGuideHtml(brandBible, mission);
+      zip.file('brand-guide.html', htmlContent);
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      saveAs(content, 'brand-bible.zip');
+    } catch (err) {
+      console.error("Failed to create zip file:", err);
+      showError(err instanceof Error ? `Download failed: ${err.message}` : 'An unknown error occurred during download.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const LoadingSkeleton = () => (
     <div className="space-y-12 animate-pulse">
       {/* Logos Skeleton */}
@@ -213,23 +254,49 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
           className="w-full h-32 p-4 bg-gray-900 border border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 transition-colors duration-200 resize-none"
           disabled={isLoading}
         />
-        <button
-          onClick={handleInitialGenerate}
-          disabled={isLoading || !mission}
-          className="mt-4 w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-all"
-        >
-          {isLoading ? (
-            <>
-              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Generating Brand Bible...
-            </>
-          ) : (
-            'Generate Brand'
-          )}
-        </button>
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+            <button
+              onClick={handleInitialGenerate}
+              disabled={isLoading || !mission}
+              className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-all"
+            >
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Generating Brand Bible...
+                </>
+              ) : (
+                'Generate Brand'
+              )}
+            </button>
+            {brandBible && !isLoading && (
+              <button
+                onClick={handleDownload}
+                disabled={isDownloading}
+                className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-gray-900 bg-cyan-400 hover:bg-cyan-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-cyan-500 disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed transition-all"
+              >
+                {isDownloading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Preparing Download...
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download Brand Bible
+                  </>
+                )}
+              </button>
+            )}
+        </div>
       </div>
 
       {isLoading && <LoadingSkeleton />}
