@@ -3,12 +3,15 @@ import { BrandGenerator } from './components/BrandGenerator';
 import { ChatBot } from './components/ChatBot';
 import type { BrandBible } from './types';
 import { createChat } from './services/geminiService';
+import { ErrorProvider, useError } from './contexts/ErrorContext';
+import { ErrorToast } from './components/ErrorToast';
 
 type View = 'generator' | 'chat';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [activeView, setActiveView] = useState<View>('generator');
   const [brandBible, setBrandBible] = useState<BrandBible | null>(null);
+  const { error, hideError } = useError();
   
   const chatSession = createChat();
 
@@ -45,6 +48,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans">
+      {error && <ErrorToast message={error} onDismiss={hideError} />}
       <header className="bg-gray-800/50 backdrop-blur-sm sticky top-0 z-10 shadow-lg">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
@@ -70,6 +74,15 @@ const App: React.FC = () => {
         )}
       </main>
     </div>
+  );
+}
+
+
+const App: React.FC = () => {
+  return (
+    <ErrorProvider>
+      <AppContent />
+    </ErrorProvider>
   );
 };
 

@@ -59,50 +59,40 @@ const brandIdentitySchema = {
 };
 
 export async function generateBrandIdentity(mission: string): Promise<BrandIdentityText> {
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
-      contents: `You are a world-class branding expert. Based on the following company mission, generate a complete brand identity bible. The mission is: "${mission}"`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: brandIdentitySchema,
-      },
-    });
-    const parsed = JSON.parse(response.text);
-    
-    parsed.secondaryMarkPrompts = (parsed.secondaryMarkPrompts || []).slice(0, 2);
-    if (parsed.secondaryMarkPrompts.length < 2) throw new Error("Model did not generate enough secondary mark prompts.");
-    
-    parsed.mockupPrompts = (parsed.mockupPrompts || []).slice(0, 3);
-    if (parsed.mockupPrompts.length < 3) throw new Error("Model did not generate enough mockup prompts.");
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-pro",
+    contents: `You are a world-class branding expert. Based on the following company mission, generate a complete brand identity bible. The mission is: "${mission}"`,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: brandIdentitySchema,
+    },
+  });
+  const parsed = JSON.parse(response.text);
+  
+  parsed.secondaryMarkPrompts = (parsed.secondaryMarkPrompts || []).slice(0, 2);
+  if (parsed.secondaryMarkPrompts.length < 2) throw new Error("Model did not generate enough secondary mark prompts.");
+  
+  parsed.mockupPrompts = (parsed.mockupPrompts || []).slice(0, 3);
+  if (parsed.mockupPrompts.length < 3) throw new Error("Model did not generate enough mockup prompts.");
 
-    return parsed;
-  } catch (error) {
-    console.error("Error generating brand identity:", error);
-    throw new Error("Failed to generate brand identity from mission.");
-  }
+  return parsed;
 }
 
 export async function generateImage(prompt: string): Promise<string> {
-  try {
-    const response = await ai.models.generateImages({
-      model: 'imagen-4.0-generate-001',
-      prompt: prompt,
-      config: {
-        numberOfImages: 1,
-        aspectRatio: '1:1',
-      },
-    });
+  const response = await ai.models.generateImages({
+    model: 'imagen-4.0-generate-001',
+    prompt: prompt,
+    config: {
+      numberOfImages: 1,
+      aspectRatio: '1:1',
+    },
+  });
 
-    const base64ImageBytes: string | undefined = response.generatedImages[0]?.image.imageBytes;
-    if (!base64ImageBytes) {
-      throw new Error("No image data returned from API.");
-    }
-    return `data:image/png;base64,${base64ImageBytes}`;
-  } catch (error) {
-    console.error(`Error generating image for prompt "${prompt}":`, error);
-    throw new Error("Failed to generate an image.");
+  const base64ImageBytes: string | undefined = response.generatedImages[0]?.image.imageBytes;
+  if (!base64ImageBytes) {
+    throw new Error("No image data returned from API.");
   }
+  return `data:image/png;base64,${base64ImageBytes}`;
 }
 
 export function createChat(): Chat {

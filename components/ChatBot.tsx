@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { Chat } from '@google/genai';
 import type { ChatMessage, ChatBotProps } from '../types';
+import { useError } from '../contexts/ErrorContext';
 
 const UserIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -20,6 +21,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ chatSession }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const { showError } = useError();
 
   useEffect(() => {
     chatContainerRef.current?.scrollTo(0, chatContainerRef.current.scrollHeight);
@@ -49,15 +51,13 @@ export const ChatBot: React.FC<ChatBotProps> = ({ chatSession }) => {
       }
     } catch (error) {
       console.error("Chat error:", error);
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === botMessageId ? { ...msg, text: 'Sorry, I encountered an error.' } : msg
-        )
-      );
+      showError(error instanceof Error ? error.message : "An unknown chat error occurred.");
+      // Remove the placeholder bot message on error
+      setMessages(prev => prev.filter(msg => msg.id !== botMessageId));
     } finally {
       setIsLoading(false);
     }
-  }, [input, chatSession]);
+  }, [input, chatSession, showError]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-12rem)] max-w-3xl mx-auto bg-gray-800 rounded-xl shadow-2xl border border-gray-700">

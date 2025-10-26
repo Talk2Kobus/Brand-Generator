@@ -13,6 +13,7 @@ import { FontPairings } from './FontPairings';
 import { LogoDisplay } from './LogoDisplay';
 import { MockupDisplay } from './MockupDisplay';
 import { RegenerateModal } from './RegenerateModal';
+import { useError } from '../contexts/ErrorContext';
 
 interface BrandGeneratorProps {
   onBrandGenerated: (bible: BrandBible) => void;
@@ -22,19 +23,18 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
   const [mission, setMission] = useState('');
   const [brandBible, setBrandBible] = useState<BrandBible | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { showError } = useError();
 
   const [regenerationRequest, setRegenerationRequest] = useState<RegenerationRequest | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
   const handleInitialGenerate = useCallback(async () => {
     if (!mission.trim()) {
-      setError('Please enter a company mission.');
+      showError('Please enter a company mission.');
       return;
     }
 
     setIsLoading(true);
-    setError(null);
     setBrandBible(null);
 
     try {
@@ -63,11 +63,11 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
 
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? err.message : 'An unknown error occurred. Please try again.');
+      showError(err instanceof Error ? err.message : 'An unknown error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [mission, onBrandGenerated]);
+  }, [mission, onBrandGenerated, showError]);
 
   const handleRequestRegeneration = useCallback((req: RegenerationRequest) => {
     setRegenerationRequest(req);
@@ -77,7 +77,6 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
     if (!regenerationRequest || !brandBible) return;
 
     setIsRegenerating(true);
-    setError(null);
 
     try {
       switch (regenerationRequest.type) {
@@ -124,12 +123,12 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
       }
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? `Regeneration failed: ${err.message}` : 'An unknown error occurred.');
+      showError(err instanceof Error ? `Regeneration failed: ${err.message}` : 'An unknown error occurred.');
     } finally {
       setIsRegenerating(false);
       setRegenerationRequest(null);
     }
-  }, [regenerationRequest, brandBible, mission, onBrandGenerated]);
+  }, [regenerationRequest, brandBible, mission, onBrandGenerated, showError]);
 
   const LoadingSkeleton = () => (
     <div className="space-y-12 animate-pulse">
@@ -231,7 +230,6 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
             'Generate Brand'
           )}
         </button>
-        {error && <p className="mt-4 text-red-400">{error}</p>}
       </div>
 
       {isLoading && <LoadingSkeleton />}
