@@ -13,6 +13,7 @@ A powerful, AI-driven application that generates a complete brand identity based
 -   **Interactive & Iterative Design**:
     -   **Regenerate Anything**: Don't like a specific element? Regenerate the logo, a mockup, the color palette, or the font pairing with a specific request for changes, without starting over.
     -   **Context-Aware**: The AI considers the existing brand identity when regenerating an element to ensure consistency.
+-   **Export Brand Bible**: Download all generated assets—logos, mockups, and a professionally styled HTML brand guide—as a single `.zip` file.
 -   **Integrated AI Assistant**:
     -   Chat with a branding-focused AI assistant powered by **Gemini 2.5 Flash** for quick advice, ideas, and answers to your questions.
     -   Features a streaming response for a real-time conversational experience.
@@ -20,6 +21,7 @@ A powerful, AI-driven application that generates a complete brand identity based
     -   Sleek, responsive interface built with Tailwind CSS.
     -   **Dynamic Google Font Loading**: Automatically fetches and applies the generated font pairings to preview them live.
     -   **Loading Skeletons**: An animated skeleton screen provides a great user experience while the initial brand identity is being generated.
+    -   **Robust Error Handling**: User-friendly toast notifications appear for API failures or validation errors, ensuring a smooth experience.
     -   **Interactive Components**: Includes features like "copy-to-clipboard" for color codes.
 
 ## Tech Stack
@@ -27,10 +29,14 @@ A powerful, AI-driven application that generates a complete brand identity based
 -   **Frontend**: [React](https://react.dev/), [TypeScript](https://www.typescriptlang.org/)
 -   **Styling**: [Tailwind CSS](https://tailwindcss.com/)
 -   **AI**: [Google Gemini API (`@google/genai`)](https://ai.google.dev/sdks)
-    -   **Text & Structure**: `gemini-2.5-pro`
-    -   **Chat**: `gemini-2.5-flash`
-    -   **Image Generation**: `imagen-4.0-generate-001`
+-   **File Packaging**: [JSZip](https://stuk.github.io/jszip/), [FileSaver.js](https://github.com/eligrey/FileSaver.js/)
 -   **Module Loading**: Leverages import maps for efficient, CDN-based package management without a build step.
+
+## AI Agent Architecture
+
+This application utilizes a sophisticated multi-agent system where different AI models are assigned specialized roles to collaborate on the final output. This approach ensures high-quality results by using the best model for each specific task—from complex structured data generation to fast conversational chat.
+
+For a detailed breakdown of each agent's role, prompts, and configuration, please see the **[AI Agent Architecture Document](./AGENTS.md)**.
 
 ## Getting Started
 
@@ -82,22 +88,16 @@ Follow these instructions to get a copy of the project up and running on your lo
 ```
 /
 ├── components/         # Reusable React components
-│   ├── BrandGenerator.tsx  # Main component for the generation flow
-│   ├── ChatBot.tsx         # The AI chat interface
-│   ├── ColorPalette.tsx    # Displays the color palette
-│   ├── FontPairings.tsx    # Displays the typography
-│   ├── LogoDisplay.tsx     # Displays primary and secondary logos
-│   ├── MockupDisplay.tsx   # Displays brand mockups
-│   └── ...               # Other UI components
-│
-├── services/           # API interaction layer
-│   └── geminiService.ts    # All logic for interacting with the Gemini API
-│
+├── contexts/           # React context for global state (e.g., errors)
+├── services/           # API interaction layer (geminiService.ts)
+├── utils/              # Utility functions (e.g., HTML generation)
 ├── types.ts            # TypeScript type definitions for the app
 ├── App.tsx             # Main application component, handles routing/views
 ├── index.html          # The main HTML file
 ├── index.tsx           # React application entry point
-└── README.md           # This file
+├── AGENTS.md           # Detailed breakdown of the AI agent architecture
+├── README.md           # This file
+└── ...                 # Other project files
 ```
 
 ## Contributing

@@ -1,13 +1,13 @@
 # Project Specification: AI Brand Identity Generator & Chat
 
-**Version:** 1.0
-**Date:** 2023-10-27
+**Version:** 1.1
+**Date:** 2023-10-28
 
 ## 1. Project Overview
 
 This document outlines the functional and technical specifications for the AI Brand Identity Generator & Chat application. The primary goal of this project is to provide users with a powerful, AI-driven tool to rapidly create a comprehensive brand identity from a simple mission statement. The application also includes an integrated AI assistant to provide branding advice and answer user questions.
 
-The application is designed as a single-page application (SPA) with a clean, modern, and intuitive user interface, prioritizing a seamless user experience from input to a fully-realized brand bible.
+The application is designed as a single-page application (SPA) with a clean, modern, and intuitive user interface, prioritizing a seamless user experience from input to a fully-realized, downloadable brand bible.
 
 ---
 
@@ -50,6 +50,19 @@ The application is designed as a single-page application (SPA) with a clean, mod
     -   The AI's response is streamed token by token, providing a real-time, interactive feel.
     -   The chat session is persistent for the duration of the user's session in the app.
 
+### 2.4. Brand Bible Export
+
+-   **Functionality**: Users can download the complete generated brand identity as a single `.zip` file.
+-   **Trigger**: A "Download Brand Bible" button becomes active after the initial generation is complete.
+-   **Contents**: The zip file contains:
+    -   `primary-logo.png`
+    -   `secondary-mark-1.png`
+    -   `secondary-mark-2.png`
+    -   `mockup-business-card.png`
+    -   `mockup-website-homepage.png`
+    -   `mockup-t-shirt.png`
+    -   `brand-guide.html`: A self-contained HTML document that includes the company mission, the full color palette with visual swatches, and live typography previews using Google Fonts.
+
 ---
 
 ## 3. UI/UX Design
@@ -58,28 +71,28 @@ The application is designed as a single-page application (SPA) with a clean, mod
 
 -   **Single-Page Application (SPA)**: The application operates within a single `index.html` file.
 -   **Header**: A sticky header provides the application title and navigation between the "Brand Generator" and "AI Chat" views.
--   **Two-View System**: The main content area switches between the `BrandGenerator` and `ChatBot` components.
--   **Styling**: A modern, dark-mode theme is implemented using Tailwind CSS. The primary accent color is cyan, used for buttons, highlights, and links.
+-   **Error Handling**: A global, non-intrusive "toast" notification system displays user-friendly messages for API failures or other errors.
+-   **Styling**: A modern, dark-mode theme is implemented using Tailwind CSS. The primary accent color is cyan.
 -   **Typography**: The app uses the 'Inter' font as a base. The generated brand bible dynamically loads and applies the selected Google Fonts for the typography preview.
 
 ### 3.2. User Flow
 
 1.  The user lands on the **Brand Generator** view.
-2.  The user enters their company mission into the textarea and clicks "Generate Brand."
-3.  A full-page **loading skeleton** is displayed, mimicking the layout of the final dashboard and providing visual feedback that the request is processing.
-4.  Once generation is complete, the skeleton is replaced by the **Brand Bible Dashboard**.
-5.  The user can interact with the dashboard: copy hex codes, view mockups, and initiate regeneration for any component.
-6.  The user can switch to the **AI Chat** view at any time to ask for branding advice.
+2.  The user enters their company mission and clicks "Generate Brand."
+3.  A full-page **loading skeleton** is displayed. If an error occurs, an error toast appears.
+4.  Once generation is complete, the **Brand Bible Dashboard** is displayed.
+5.  A **"Download Brand Bible"** button appears, allowing the user to save their assets.
+6.  The user can interact with the dashboard: copy hex codes, view mockups, and initiate regeneration for any component.
+7.  The user can switch to the **AI Chat** view at any time.
 
 ### 3.3. Key UI Components
 
--   **Mission Input**: A large textarea with clear instructions. The "Generate" button is disabled until input is provided and shows a loading state during generation.
+-   **Mission Input**: A large textarea with a "Generate" button that shows a loading state.
+-   **Download Button**: Appears after generation is complete and shows a loading state while the zip file is being prepared.
 -   **Brand Dashboard**: A collection of well-structured cards for each brand element.
-    -   `ImageCard`: A reusable component for displaying logos and mockups, featuring a title and a hover-to-reveal "Regenerate" button. It handles its own image loading state and displays a spinner during regeneration.
-    -   `ColorPalette`: Displays color swatches, names, hex codes (with copy-to-clipboard functionality), and usage info.
-    -   `FontPairings`: Previews the header and body fonts with sample text.
--   **Regenerate Modal**: A focused dialog that captures user feedback for regenerating a component.
--   **Chat Interface**: A scrollable message history with a text input and send button at the bottom.
+-   **Regenerate Modal**: A focused dialog that captures user feedback.
+-   **Chat Interface**: A scrollable message history with a text input.
+-   **Error Toast**: An auto-dismissing banner that appears at the top of the screen to display error messages without interrupting workflow.
 
 ---
 
@@ -90,35 +103,40 @@ The application is designed as a single-page application (SPA) with a clean, mod
 -   **Framework**: React 19 (via CDN import maps)
 -   **Language**: TypeScript
 -   **Styling**: Tailwind CSS (via CDN)
--   **Module System**: Native ES Modules with Import Maps. This removes the need for a local build step (like Vite or Webpack) and pulls dependencies directly from a CDN.
+-   **File Packaging**: JSZip, FileSaver.js (via CDN)
+-   **Module System**: Native ES Modules with Import Maps, removing the need for a local build step.
 
-### 4.2. AI Integration (`@google/genai`)
+### 4.2. State Management
 
--   **Library**: The official `@google/genai` SDK is used for all interactions with the Google AI platform.
--   **API Key Management**: The API key is expected to be available as `process.env.API_KEY` in the execution environment.
+-   **Local Component State**: Managed within React components using `useState` and `useCallback` hooks.
+-   **Global Error State**: A global `ErrorContext` provides a centralized `showError` function and state, which is consumed by the `ErrorToast` component. This decouples error reporting from error display.
+-   **Top-Down Data Flow**: The `App` component manages top-level state (like the `brandBible` for font loading) and passes it down to child components.
 
-### 4.3. Model Usage
+### 4.3. AI Agent Architecture
 
--   **`gemini-2.5-pro`**: Used for the initial, complex task of generating the structured Brand Bible JSON. Its larger context window and advanced reasoning are ideal for this multi-part generation.
--   **`imagen-4.0-generate-001`**: Used for all image generation tasks. It produces high-quality, photorealistic images from text prompts.
--   **`gemini-2.5-flash`**: Used for the AI Chat assistant and for the faster, more targeted regeneration tasks (like creating a new image prompt). It's chosen for its low latency.
+The application uses a multi-agent system, leveraging different Google AI models for specialized tasks to ensure optimal quality and performance.
 
-### 4.4. State Management
+-   **Brand Strategist (`gemini-2.5-pro`)**: Generates the initial structured text for the brand bible (prompts, colors, fonts) in JSON format.
+-   **Visual Artist (`imagen-4.0-generate-001`)**: Generates all images from text prompts.
+-   **Creative Director (`gemini-2.5-flash`)**: Handles fast, context-aware regeneration of image prompts based on user feedback.
+-   **Design Specialist (`gemini-2.5-pro`)**: Handles high-quality regeneration of structured data (color palettes, font pairings).
+-   **Branding Assistant (`gemini-2.5-flash`)**: Powers the low-latency, streaming AI chat.
 
--   **Local Component State**: State is managed locally within React components using `useState` and `useCallback` hooks.
--   **Top-Down Data Flow**: The main `BrandGenerator` component manages the primary state (mission, brandBible, isLoading) and passes data and callbacks down to its children. The `App` component lifts state for the `brandBible` to manage dynamic font loading.
+For a complete breakdown, see the **[AI Agent Architecture Document](./AGENTS.md)**.
 
-### 4.5. Project Structure
+### 4.4. Project Structure
 
 ```
 /
-├── components/         # Reusable React components
+├── components/         # Reusable React components (ErrorToast, etc.)
+├── contexts/           # React context for global state (ErrorContext.tsx)
 ├── services/           # API interaction layer (geminiService.ts)
+├── utils/              # Utility functions (generateBrandGuideHtml.ts)
 ├── types.ts            # Centralized TypeScript type definitions
-├── App.tsx             # Main component, handles view switching
-├── index.html          # Entry point with import maps and Tailwind config
+├── App.tsx             # Main component, handles view switching & error provider
+├── index.html          # Entry point with import maps and CDN links
 ├── index.tsx           # React root renderer
+├── AGENTS.md           # Detailed breakdown of the AI agent architecture
 ├── README.md           # Project documentation
-├── SPECIFICATION.md    # This file
-└── ...                 # Contribution and licensing files
+└── SPECIFICATION.md    # This file
 ```
