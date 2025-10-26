@@ -1,5 +1,3 @@
-import type { Chat } from "@google/genai";
-
 export interface ColorInfo {
   hex: string;
   name: string;
@@ -31,9 +29,19 @@ export interface ChatMessage {
   sender: 'user' | 'bot';
 }
 
-export interface ChatBotProps {
-    chatSession: Chat | null;
+// --- CHAT ABSTRACTION ---
+export interface ChatMessageChunk {
+  text: string;
 }
+
+export interface ChatSession {
+  sendMessageStream(params: { message: string }): Promise<AsyncIterable<ChatMessageChunk>>;
+}
+
+export interface ChatBotProps {
+    chatSession: ChatSession | null;
+}
+// -------------------------
 
 // Types for component regeneration
 export type RegenerationType = 'primaryLogo' | 'secondaryMark' | 'mockup' | 'colorPalette' | 'fontPairing';

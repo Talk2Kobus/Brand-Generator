@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrandGenerator } from './components/BrandGenerator';
 import { ChatBot } from './components/ChatBot';
 import type { BrandBible } from './types';
-import { createChat } from './services/geminiService';
+import { createChat } from './services/aiService';
 import { ErrorProvider, useError } from './contexts/ErrorContext';
 import { ErrorToast } from './components/ErrorToast';
 

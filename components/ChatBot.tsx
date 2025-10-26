@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import type { Chat } from '@google/genai';
 import type { ChatMessage, ChatBotProps } from '../types';
 import { useError } from '../contexts/ErrorContext';
 

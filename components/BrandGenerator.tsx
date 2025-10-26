@@ -6,7 +6,7 @@ import {
   regenerateColorPalette, 
   regenerateFontPairing,
   regenerateMockupPrompt
-} from '../services/geminiService';
+} from '../services/aiService';
 import type { BrandBible, BrandIdentityText, RegenerationRequest } from '../types';
 import { ColorPalette } from './ColorPalette';
 import { FontPairings } from './FontPairings';
