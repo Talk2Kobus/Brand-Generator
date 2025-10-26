@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -78,39 +80,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           <div className="p-6 space-y-4">
             <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">Email Address</label>
-                <input
+                <Input
                     id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
                     required
                     autoFocus
                 />
             </div>
             <div>
                 <label htmlFor="password"  className="block text-sm font-medium text-gray-300 mb-2">Password</label>
-                <input
+                <Input
                     id="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
                     required
                 />
             </div>
           </div>
           <div className="bg-gray-700/50 px-6 py-4 rounded-b-xl">
-            <button
+            <Button
               type="submit"
+              isLoading={isLoading}
               disabled={isLoading || !email || !password}
-              className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed"
+              className="w-full"
             >
-              {isLoading && view === 'login' ? 'Logging in...' : ''}
-              {isLoading && view === 'register' ? 'Creating account...' : ''}
-              {!isLoading && view === 'login' ? 'Login' : ''}
-              {!isLoading && view === 'register' ? 'Create Account' : ''}
-            </button>
+              {view === 'login' ? 'Login' : 'Create Account'}
+            </Button>
           </div>
         </form>
 
@@ -124,22 +122,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 </div>
             </div>
             <div className="space-y-3">
-                <button
+                <Button
                     onClick={() => handleSocialLogin('google')}
                     disabled={isLoading}
-                    className="w-full inline-flex items-center justify-center gap-3 px-4 py-2 border border-gray-600 text-sm font-medium rounded-md shadow-sm text-white bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-cyan-500 disabled:opacity-50"
+                    variant="secondary"
+                    className="w-full gap-3"
                 >
                     <GoogleIcon />
                     Continue with Google
-                </button>
-                <button
+                </Button>
+                <Button
                     onClick={() => handleSocialLogin('facebook')}
                     disabled={isLoading}
-                    className="w-full inline-flex items-center justify-center gap-3 px-4 py-2 border border-gray-600 text-sm font-medium rounded-md shadow-sm text-white bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-cyan-500 disabled:opacity-50"
+                    variant="secondary"
+                    className="w-full gap-3"
                 >
                     <FacebookIcon />
                     Continue with Facebook
-                </button>
+                </Button>
             </div>
         </div>
 

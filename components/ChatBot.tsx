@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { ChatMessage, ChatBotProps } from '../types';
 import { useError } from '../contexts/ErrorContext';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 const UserIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -135,30 +137,31 @@ export const ChatBot: React.FC<ChatBotProps> = ({ chatSession }) => {
         )}
         <form onSubmit={handleSend} className="flex items-center gap-4">
           <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-          <button 
+          <Button 
             type="button" 
+            variant="secondary"
+            size="icon"
             onClick={() => fileInputRef.current?.click()} 
             disabled={isLoading || !!attachedImage}
-            className="p-3 bg-gray-700 rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             aria-label="Attach image"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-          </button>
-          <input
+          </Button>
+          <Input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask a branding question..."
-            className="flex-1 p-3 bg-gray-900 border border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors duration-200"
+            className="flex-1"
             disabled={isLoading}
           />
-          <button type="submit" disabled={isLoading || (!input.trim() && !attachedImage)} className="p-3 bg-cyan-600 rounded-lg hover:bg-cyan-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors">
+          <Button type="submit" size="icon" disabled={isLoading || (!input.trim() && !attachedImage)}>
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
             </svg>
-          </button>
+          </Button>
         </form>
       </div>
     </div>

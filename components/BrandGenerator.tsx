@@ -17,10 +17,11 @@ import type { BrandBible, BrandVoice, RegenerationRequest } from '../types';
 import { useError } from '../contexts/ErrorContext';
 import { useAuth } from '../contexts/AuthContext';
 
-import { ColorPalette } from './ColorPalette';
-import { FontPairings } from './FontPairings';
-import { LogoDisplay } from './LogoDisplay';
-import { MockupDisplay } from './MockupDisplay';
+import { MissionStage } from './generator/MissionStage';
+import { NameSuggestionStage } from './generator/NameSuggestionStage';
+import { VoiceSelectionStage } from './generator/VoiceSelectionStage';
+import { GeneratingStage } from './generator/GeneratingStage';
+import { BrandBibleDisplay } from './generator/BrandBibleDisplay';
 import { RegenerateModal } from './RegenerateModal';
 
 interface BrandGeneratorProps {
@@ -30,30 +31,21 @@ interface BrandGeneratorProps {
 }
 
 type Stage = 'mission' | 'names' | 'voice' | 'generating' | 'done';
-type DomainStatus = 'idle' | 'checking' | 'checked';
-
-const LoadingSpinner: React.FC<{ size?: string }> = ({ size = 'h-5 w-5' }) => (
-    <svg className={`animate-spin text-white ${size}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-    </svg>
-);
 
 const TLD_OPTIONS = ['.com', '.io', '.ai', '.app', '.co', '.net', '.org', '.xyz', '.shop', '.co.za', '.com.na', '.co.uk'];
 
 export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated, initialBrand, setInitialBrand }) => {
   const [stage, setStage] = useState<Stage>('mission');
   const [mission, setMission] = useState('');
+  const [companyName, setCompanyName] = useState('');
+
   const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
-  
-  const [domainStatus, setDomainStatus] = useState<DomainStatus>('idle');
+  const [domainStatus, setDomainStatus] = useState<'idle' | 'checking' | 'checked'>('idle');
   const [domainChecks, setDomainChecks] = useState<Record<string, DomainAvailability>>({});
   const [selectedTld, setSelectedTld] = useState('.com');
 
-  const [selectedName, setSelectedName] = useState('');
   const [brandVoices, setBrandVoices] = useState<BrandVoice[]>([]);
-  const [selectedVoice, setSelectedVoice] = useState<BrandVoice | undefined>(undefined);
-
+  
   const [brandBible, setBrandBible] = useState<BrandBible | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [progressMessage, setProgressMessage] = useState('');
@@ -70,9 +62,8 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
     if (initialBrand) {
       setBrandBible(initialBrand);
       setMission(initialBrand.mission || '');
-      setSelectedName(initialBrand.companyName || '');
+      setCompanyName(initialBrand.companyName || '');
       setStage('done');
-      // Clear the initial brand so it doesn't reload on component re-render
       setInitialBrand(null);
     }
   }, [initialBrand, setInitialBrand]);
@@ -92,14 +83,6 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
     }
   }, [brandBible, onBrandGenerated]);
 
-  const handleMissionSubmit = () => {
-    if (selectedName.trim()) {
-      handleNameSelection(selectedName.trim());
-    } else {
-      handleSuggestNames();
-    }
-  };
-
   const handleSuggestNames = async () => {
     setIsLoading(true);
     setProgressMessage("Brainstorming business names...");
@@ -114,6 +97,14 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
       setStage('mission');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleMissionSubmit = () => {
+    if (companyName.trim()) {
+      handleNameSelection(companyName.trim());
+    } else {
+      handleSuggestNames();
     }
   };
 
@@ -139,7 +130,7 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
       return;
     }
     const finalName = name.trim();
-    setSelectedName(finalName);
+    setCompanyName(finalName);
     setIsLoading(true);
     setProgressMessage("Defining brand personality...");
     try {
@@ -154,56 +145,34 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
     }
   };
 
-  const handleGenerateBrand = async (name: string, voice: BrandVoice | undefined) => {
-    setSelectedName(name);
-    setSelectedVoice(voice);
+  const handleGenerateBrand = useCallback(async (name: string, voice: BrandVoice | undefined) => {
+    setCompanyName(name);
     setStage('generating');
     setIsLoading(true);
 
     try {
       setProgressMessage("Generating brand identity text...");
       const identityText = await generateBrandIdentity(mission, name, voice);
-
       setProgressMessage("Creating primary logo...");
       const primaryLogoUrl = await generateImage(identityText.primaryLogoPrompt);
-      
       setProgressMessage("Designing secondary marks...");
-      const secondaryMarkUrls = await Promise.all(
-        identityText.secondaryMarkPrompts.map(prompt => generateImage(prompt))
-      );
-
+      const secondaryMarkUrls = await Promise.all(identityText.secondaryMarkPrompts.map(prompt => generateImage(prompt)));
       setProgressMessage("Producing brand mockups...");
       const mockupUrls = await Promise.all(
         identityText.mockupPrompts.map(async (prompt, i) => {
           const url = await generateImage(prompt);
           let title = `Mockup ${i+1}`;
           if (prompt.toLowerCase().includes('business card')) title = 'Business Card';
-          else if (prompt.toLowerCase().includes('website') || prompt.toLowerCase().includes('laptop')) title = 'Website Mockup';
-          else if (prompt.toLowerCase().includes('t-shirt') || prompt.toLowerCase().includes('apparel')) title = 'T-Shirt Mockup';
+          else if (prompt.toLowerCase().includes('website')) title = 'Website Mockup';
+          else if (prompt.toLowerCase().includes('t-shirt')) title = 'T-Shirt Mockup';
           return { title, url };
         })
       );
-
-      // Fix: Add mission and companyName to the BrandBible object upon creation.
-      const finalBible: BrandBible = {
-        ...identityText,
-        mission,
-        companyName: name,
-        brandVoice: voice,
-        primaryLogoUrl,
-        secondaryMarkUrls,
-        mockupUrls,
-      };
-
+      
+      const finalBible: BrandBible = { ...identityText, mission, companyName: name, brandVoice: voice, primaryLogoUrl, secondaryMarkUrls, mockupUrls };
       setBrandBible(finalBible);
       setStage('done');
-      
-      // Track analytics event
-      apiService.trackAnalyticsEvent('BRAND_CREATED', {
-          colors: finalBible.colorPalette.map(c => c.hex),
-          headerFont: finalBible.fontPairing.header,
-          bodyFont: finalBible.fontPairing.body,
-      });
+      apiService.trackAnalyticsEvent('BRAND_CREATED', { colors: finalBible.colorPalette.map(c => c.hex), headerFont: finalBible.fontPairing.header, bodyFont: finalBible.fontPairing.body });
 
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to generate brand identity.");
@@ -212,11 +181,7 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
       setIsLoading(false);
       setProgressMessage('');
     }
-  };
-  
-  const handleRegenerateSuggestions = async () => {
-    await handleSuggestNames();
-  };
+  }, [mission, showError]);
   
   const handleOpenRegenerateModal = (req: RegenerationRequest) => {
     setRegenerationRequest(req);
@@ -224,51 +189,46 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
   };
   
   const handleRegenerate = async (changeRequest: string) => {
-    if (!regenerationRequest || !brandBible || !mission || !selectedName) return;
+    if (!regenerationRequest || !brandBible || !mission || !companyName) return;
     
     setIsRegenerating(true);
     setIsModalOpen(false);
+    const updateBible = (updates: Partial<BrandBible>) => setBrandBible(prev => prev ? { ...prev, ...updates } : null);
 
     try {
         switch(regenerationRequest.type) {
             case 'primaryLogo': {
-                const newPrompt = await regenerateLogoPrompt(mission, selectedName, brandBible, changeRequest, 'primary');
+                const newPrompt = await regenerateLogoPrompt(mission, companyName, brandBible, changeRequest, 'primary');
                 const newUrl = await generateImage(newPrompt);
-                setBrandBible(prev => prev ? { ...prev, primaryLogoUrl: newUrl, primaryLogoPrompt: newPrompt } : null);
+                updateBible({ primaryLogoUrl: newUrl, primaryLogoPrompt: newPrompt });
                 break;
             }
             case 'secondaryMark': {
-                if (regenerationRequest.index === undefined) throw new Error("Index missing");
-                const newPrompt = await regenerateLogoPrompt(mission, selectedName, brandBible, changeRequest, 'secondary');
+                const { index } = regenerationRequest;
+                if (index === undefined) throw new Error("Index missing");
+                const newPrompt = await regenerateLogoPrompt(mission, companyName, brandBible, changeRequest, 'secondary');
                 const newUrl = await generateImage(newPrompt);
-                const newUrls = [...brandBible.secondaryMarkUrls];
-                newUrls[regenerationRequest.index] = newUrl;
-                const newPrompts = [...brandBible.secondaryMarkPrompts];
-                newPrompts[regenerationRequest.index] = newPrompt;
-                setBrandBible(prev => prev ? { ...prev, secondaryMarkUrls: newUrls, secondaryMarkPrompts: newPrompts } : null);
+                const newUrls = [...brandBible.secondaryMarkUrls]; newUrls[index] = newUrl;
+                const newPrompts = [...brandBible.secondaryMarkPrompts]; newPrompts[index] = newPrompt;
+                updateBible({ secondaryMarkUrls: newUrls, secondaryMarkPrompts: newPrompts });
                 break;
             }
             case 'mockup': {
-                if (regenerationRequest.index === undefined) throw new Error("Index missing");
-                const newPrompt = await regenerateMockupPrompt(mission, selectedName, brandBible, changeRequest, regenerationRequest.title);
+                const { index, title } = regenerationRequest;
+                if (index === undefined) throw new Error("Index missing");
+                const newPrompt = await regenerateMockupPrompt(mission, companyName, brandBible, changeRequest, title);
                 const newUrl = await generateImage(newPrompt);
-                const newUrls = [...brandBible.mockupUrls];
-                newUrls[regenerationRequest.index] = { ...newUrls[regenerationRequest.index], url: newUrl };
-                const newPrompts = [...brandBible.mockupPrompts];
-                newPrompts[regenerationRequest.index] = newPrompt;
-                setBrandBible(prev => prev ? { ...prev, mockupUrls: newUrls, mockupPrompts: newPrompts } : null);
+                const newUrls = [...brandBible.mockupUrls]; newUrls[index] = { ...newUrls[index], url: newUrl };
+                const newPrompts = [...brandBible.mockupPrompts]; newPrompts[index] = newPrompt;
+                updateBible({ mockupUrls: newUrls, mockupPrompts: newPrompts });
                 break;
             }
-            case 'colorPalette': {
-                const newPalette = await regenerateColorPalette(mission, selectedName, brandBible, changeRequest);
-                setBrandBible(prev => prev ? { ...prev, colorPalette: newPalette } : null);
+            case 'colorPalette':
+                updateBible({ colorPalette: await regenerateColorPalette(mission, companyName, brandBible, changeRequest) });
                 break;
-            }
-            case 'fontPairing': {
-                const newFonts = await regenerateFontPairing(mission, selectedName, brandBible, changeRequest);
-                setBrandBible(prev => prev ? { ...prev, fontPairing: newFonts } : null);
+            case 'fontPairing':
+                updateBible({ fontPairing: await regenerateFontPairing(mission, companyName, brandBible, changeRequest) });
                 break;
-            }
         }
     } catch(err) {
         showError(err instanceof Error ? err.message : "Failed to regenerate item.");
@@ -279,13 +239,12 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
   };
   
   const handleSaveBrand = async () => {
-    if (!brandBible || !mission || !selectedName) return;
+    if (!brandBible || !mission || !companyName) return;
     setIsSaving(true);
     try {
-        const savedBrand = await apiService.saveBrand(brandBible, mission, selectedName);
-        // Update the current brandBible with the ID from the backend
+        const savedBrand = await apiService.saveBrand(brandBible, mission, companyName);
         setBrandBible(prev => prev ? { ...prev, id: savedBrand.id } : null);
-        showError("Brand saved successfully!"); // Using showError for success message for simplicity
+        showError("Brand saved successfully!");
     } catch(err) {
         showError(err instanceof Error ? err.message : "Failed to save brand.");
     } finally {
@@ -294,17 +253,15 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
   };
 
   const handleDownload = () => {
-    if (!brandBible || !mission || !selectedName) return;
-    const htmlContent = generateBrandGuideHtml(brandBible, mission, selectedName);
+    if (!brandBible || !mission || !companyName) return;
+    const htmlContent = generateBrandGuideHtml(brandBible, mission, companyName);
     const blob = new Blob([htmlContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `${selectedName.toLowerCase().replace(/ /g, '_')}_brand_guide.html`;
-    document.body.appendChild(a);
+    a.href = URL.createObjectURL(blob);
+    a.download = `${companyName.toLowerCase().replace(/ /g, '_')}_brand_guide.html`;
     a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(a.href);
+    a.remove();
   };
   
   const handleStartOver = () => {
@@ -313,195 +270,24 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
     setNameSuggestions([]);
     setDomainChecks({});
     setDomainStatus('idle');
-    setSelectedName('');
+    setCompanyName('');
     setBrandVoices([]);
-    setSelectedVoice(undefined);
     setBrandBible(null);
   };
 
   const renderContent = () => {
-    if (isLoading) {
-      return (
-        <div className="text-center p-12 bg-gray-800 rounded-lg max-w-lg mx-auto">
-          <div className="flex justify-center items-center mb-4"><LoadingSpinner size="w-8 h-8" /></div>
-          <p className="text-xl text-white">{progressMessage}</p>
-          <p className="text-gray-400">Please wait, this can take a moment...</p>
-        </div>
-      );
-    }
-    
     switch (stage) {
       case 'mission':
-        return (
-          <div className="max-w-2xl mx-auto">
-            <h2 className="text-3xl font-bold text-center text-white mb-2">Let's Build Your Brand</h2>
-            <p className="text-lg text-center text-gray-400 mb-8">Start with your mission. If you already have a name, add it too.</p>
-            <form onSubmit={(e) => { e.preventDefault(); handleMissionSubmit(); }} className="bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700 space-y-6">
-              <div>
-                <label htmlFor="mission" className="block text-sm font-medium text-gray-300 mb-2">Company Mission or Business Idea*</label>
-                <textarea
-                  id="mission"
-                  value={mission}
-                  onChange={(e) => setMission(e.target.value)}
-                  placeholder="e.g., 'An eco-friendly subscription box for house plants that helps people connect with nature.'"
-                  className="w-full h-32 p-4 bg-gray-900 border border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors duration-200 resize-none text-lg"
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="companyName" className="block text-sm font-medium text-gray-300 mb-2">Company Name (Optional)</label>
-                <input
-                  id="companyName"
-                  type="text"
-                  value={selectedName}
-                  onChange={(e) => setSelectedName(e.target.value)}
-                  placeholder="e.g., 'Leafy Life'"
-                  className="w-full p-4 bg-gray-900 border border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors duration-200 text-lg"
-                />
-              </div>
-              <button type="submit" disabled={!mission.trim()} className="w-full flex items-center justify-center p-4 text-lg font-bold bg-cyan-600 rounded-lg hover:bg-cyan-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors text-white">
-                {selectedName.trim() ? 'Next: Define Brand Voice' : 'Next: Suggest Names'} &rarr;
-              </button>
-            </form>
-          </div>
-        );
-
+        return <MissionStage mission={mission} setMission={setMission} companyName={companyName} setCompanyName={setCompanyName} onSubmit={handleMissionSubmit} />;
       case 'names':
-        return (
-          <div className="max-w-3xl mx-auto">
-            <h2 className="text-3xl font-bold text-center text-white mb-2">Choose Your Name</h2>
-            <p className="text-lg text-center text-gray-400 mb-8">Here are some AI-suggested names. Pick one, check domain availability, or enter your own.</p>
-            
-            <div className="bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700">
-              <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
-                 <div className="flex items-center gap-2">
-                    <span className="text-gray-300">Check availability for:</span>
-                    <select value={selectedTld} onChange={(e) => { setSelectedTld(e.target.value); setDomainStatus('idle'); setDomainChecks({}); }} className="bg-gray-900 border border-gray-600 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500">
-                      {TLD_OPTIONS.map(tld => <option key={tld} value={tld}>{tld}</option>)}
-                    </select>
-                </div>
-                 <button onClick={handleCheckAvailability} disabled={domainStatus === 'checking'} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium bg-gray-700 rounded-md hover:bg-gray-600 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors text-white">
-                  {domainStatus === 'checking' ? <><LoadingSpinner size="w-4 h-4" /> Checking...</> : 'Check Availability'}
-                 </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                {nameSuggestions.map((name) => {
-                  const domain = name.toLowerCase().replace(/[^a-z0-9]/g, '') + selectedTld;
-                  const check = domainChecks[domain];
-
-                  return (
-                    <button key={name} onClick={() => handleNameSelection(name)} className="p-4 bg-gray-900 rounded-lg text-left hover:bg-gray-700 border border-gray-600 hover:border-cyan-500 transition-all focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                      <p className="text-xl font-bold text-white">{name}</p>
-                      <div className="text-sm mt-1 h-5 flex items-center">
-                        {domainStatus === 'checking' && <span className="text-gray-400">Checking...</span>}
-                        {domainStatus === 'checked' && check && (
-                           <span className={`flex items-center gap-1.5 ${check.isAvailable ? 'text-green-400' : 'text-yellow-500'}`}>
-                               {check.isAvailable ? '✅' : '❌'} {check.domain} {check.isAvailable ? 'is available' : 'is taken'}
-                           </span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-              
-              <div className="flex justify-center">
-                  <button onClick={handleRegenerateSuggestions} disabled={isLoading} className="text-sm text-cyan-400 hover:text-cyan-300 disabled:opacity-50 transition-colors">
-                    Regenerate suggestions
-                  </button>
-              </div>
-            </div>
-
-            <form onSubmit={(e) => { e.preventDefault(); handleNameSelection(selectedName); }} className="flex gap-4 items-center mt-8">
-              <input 
-                type="text"
-                placeholder="Or enter your chosen name here..."
-                value={selectedName}
-                onChange={(e) => setSelectedName(e.target.value)}
-                className="flex-1 p-3 bg-gray-900 border border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors duration-200"
-              />
-              <button type="submit" className="px-6 py-3 font-bold bg-cyan-600 rounded-lg hover:bg-cyan-700 disabled:bg-gray-600 text-white" disabled={!selectedName.trim()}>Next: Define Voice &rarr;</button>
-            </form>
-            <button onClick={() => setStage('mission')} className="text-sm text-gray-400 hover:text-cyan-400 transition-colors mt-4 mx-auto block">
-                &larr; Back to mission
-            </button>
-          </div>
-        );
-        
+        return <NameSuggestionStage suggestions={nameSuggestions} domainStatus={domainStatus} domainChecks={domainChecks} selectedTld={selectedTld} tldOptions={TLD_OPTIONS} setSelectedTld={(tld) => { setSelectedTld(tld); setDomainStatus('idle'); setDomainChecks({}); }} onCheckAvailability={handleCheckAvailability} onNameSelect={handleNameSelection} onRegenerate={handleSuggestNames} isLoading={isLoading} selectedName={companyName} setSelectedName={setCompanyName} onBack={() => setStage('mission')} />;
       case 'voice':
-        return (
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl font-bold text-center text-white mb-2">Define Your Brand's Voice</h2>
-            <p className="text-lg text-center text-gray-400 mb-8">Choose the personality that best fits <span className="font-bold text-cyan-400">{selectedName}</span>. This will influence your entire brand identity.</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {brandVoices.map((voice) => (
-                <div key={voice.name} className="bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 flex flex-col text-center">
-                  <h3 className="text-2xl font-bold text-white mb-2">{voice.name}</h3>
-                  <p className="text-gray-300 flex-grow">{voice.description}</p>
-                  <div className="my-4">
-                    {voice.keywords.map(kw => <span key={kw} className="inline-block bg-gray-700 rounded-full px-3 py-1 text-sm font-semibold text-gray-300 mr-2 mb-2">{kw}</span>)}
-                  </div>
-                  <button onClick={() => handleGenerateBrand(selectedName, voice)} className="mt-auto w-full p-3 font-bold bg-cyan-600 rounded-lg hover:bg-cyan-700 text-white transition-colors">Select this Voice</button>
-                </div>
-              ))}
-            </div>
-             <div className="text-center mt-8">
-                <button onClick={() => handleGenerateBrand(selectedName, undefined)} className="text-gray-400 hover:text-cyan-400 transition-colors">
-                    Skip and Generate Brand &rarr;
-                </button>
-             </div>
-          </div>
-        );
-
+        return <VoiceSelectionStage brandVoices={brandVoices} selectedName={companyName} onSelectVoice={(voice) => handleGenerateBrand(companyName, voice)} onSkip={() => handleGenerateBrand(companyName, undefined)} />;
+      case 'generating':
+        return <GeneratingStage message={progressMessage} />;
       case 'done':
         if (!brandBible) return null;
-        return (
-          <div className="space-y-12">
-            <div className="text-center">
-              <h2 className="text-4xl font-bold text-white">Your Brand Bible for <span className="text-cyan-400">{selectedName}</span></h2>
-              <blockquote className="text-lg text-gray-400 mt-4 max-w-3xl mx-auto border-l-4 border-cyan-700 pl-4 italic">"{mission}"</blockquote>
-              {brandBible.brandVoice && (
-                <div className="mt-4 text-gray-300">
-                    <strong>Brand Voice:</strong> {brandBible.brandVoice.name} <span className="text-gray-400">({brandBible.brandVoice.keywords.join(', ')})</span>
-                </div>
-              )}
-              <div className="mt-6 flex justify-center items-center gap-4">
-                  <button onClick={handleDownload} className="px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors">Download Brand Guide</button>
-                   <button onClick={handleStartOver} className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors">Start Over</button>
-                   {isAuthenticated && (
-                     <button onClick={handleSaveBrand} disabled={isSaving} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-500 transition-colors">
-                        {isSaving ? 'Saving...' : (brandBible.id ? 'Saved' : 'Save to Library')}
-                     </button>
-                   )}
-              </div>
-            </div>
-            <ColorPalette 
-                colors={brandBible.colorPalette} 
-                onRegenerate={() => handleOpenRegenerateModal({ type: 'colorPalette', title: 'Regenerate Color Palette' })}
-                isRegenerating={isRegenerating && regenerationRequest?.type === 'colorPalette'}
-            />
-            <FontPairings 
-                fonts={brandBible.fontPairing} 
-                onRegenerate={() => handleOpenRegenerateModal({ type: 'fontPairing', title: 'Regenerate Font Pairing' })}
-                isRegenerating={isRegenerating && regenerationRequest?.type === 'fontPairing'}
-            />
-            <LogoDisplay 
-                primaryLogoUrl={brandBible.primaryLogoUrl}
-                secondaryMarkUrls={brandBible.secondaryMarkUrls}
-                onRegenerate={handleOpenRegenerateModal}
-                isRegenerating={isRegenerating && (regenerationRequest?.type === 'primaryLogo' || regenerationRequest?.type === 'secondaryMark')}
-                regenerationInfo={regenerationRequest}
-            />
-            <MockupDisplay 
-                mockups={brandBible.mockupUrls}
-                onRegenerate={handleOpenRegenerateModal}
-                isRegenerating={isRegenerating && regenerationRequest?.type === 'mockup'}
-                regenerationInfo={regenerationRequest}
-            />
-          </div>
-        );
-
+        return <BrandBibleDisplay brandBible={brandBible} mission={mission} selectedName={companyName} isAuthenticated={isAuthenticated} isSaving={isSaving} onDownload={handleDownload} onStartOver={handleStartOver} onSave={handleSaveBrand} onOpenRegenerateModal={handleOpenRegenerateModal} isRegenerating={isRegenerating} regenerationRequest={regenerationRequest} />;
       default:
         return null;
     }
@@ -510,13 +296,7 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
   return (
     <>
       {renderContent()}
-      <RegenerateModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleRegenerate}
-        title={regenerationRequest?.title || "Regenerate"}
-        isLoading={isRegenerating}
-      />
+      <RegenerateModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={handleRegenerate} title={regenerationRequest?.title || "Regenerate"} isLoading={isRegenerating} />
     </>
   );
 };
