@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Part } from "@google/genai";
 import type { Chat as GeminiChat } from "@google/genai";
 import type { BrandIdentityText, BrandBible, ColorInfo, FontPairing, ChatSession, ChatMessageChunk, BrandVoice } from '../../types';
 import { MODELS } from '../../config';
@@ -166,8 +166,30 @@ class GeminiChatWrapper implements ChatSession {
     this.geminiChat = chat;
   }
 
-  async sendMessageStream(params: { message: string }): Promise<AsyncIterable<ChatMessageChunk>> {
-    const stream = await this.geminiChat.sendMessageStream({ message: params.message });
+  async sendMessageStream(params: { message: string; image?: { data: string; mimeType: string } }): Promise<AsyncIterable<ChatMessageChunk>> {
+    const { message, image } = params;
+    
+    const parts: Part[] = [];
+    if (message.trim()) {
+        parts.push({ text: message });
+    }
+
+    if (image) {
+      parts.push({
+        inlineData: {
+          data: image.data,
+          mimeType: image.mimeType,
+        },
+      });
+    }
+
+    if (parts.length === 0) {
+        return (async function*() {})(); // Return empty async iterator if no content
+    }
+
+    // Fix: The sendMessageStream method expects an object with a `message` property.
+    const stream = await this.geminiChat.sendMessageStream({ message: parts });
+    
     return (async function*(): AsyncIterable<ChatMessageChunk> {
         for await (const chunk of stream) {
             yield { text: chunk.text };

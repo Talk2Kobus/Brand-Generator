@@ -59,6 +59,7 @@ The generated brand bible will include:
 ### 2.8. AI Chat Assistant
 
 -   A separate "AI Chat" view provides a conversational interface with an AI assistant specialized in branding.
+-   **Multimodal Input**: Users can attach an image to their message to ask questions about visual content.
 
 ## 3. Technical Architecture
 

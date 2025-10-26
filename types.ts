@@ -38,6 +38,7 @@ export interface ChatMessage {
   id: string;
   text: string;
   sender: 'user' | 'bot';
+  imageUrl?: string; // For displaying the sent image in the UI
 }
 
 // --- CHAT ABSTRACTION ---
@@ -46,7 +47,10 @@ export interface ChatMessageChunk {
 }
 
 export interface ChatSession {
-  sendMessageStream(params: { message: string }): Promise<AsyncIterable<ChatMessageChunk>>;
+  sendMessageStream(params: { 
+    message: string; 
+    image?: { data: string; mimeType: string };
+  }): Promise<AsyncIterable<ChatMessageChunk>>;
 }
 
 export interface ChatBotProps {

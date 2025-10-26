@@ -89,7 +89,7 @@ This agent is a specialized version of the Brand Strategist, focused on regenera
 This agent powers the conversational AI chat feature, providing real-time advice and answering questions.
 
 -   **Model**: `BRANDING_ASSISTANT` (configurable in `config.ts`, default: `gemini-2.5-flash`)
--   **Role**: To act as a friendly and helpful branding expert in a chat interface. It is optimized for low-latency, conversational interactions.
+-   **Role**: To act as a friendly and helpful branding expert in a chat interface. It is optimized for low-latency, conversational interactions and can process multimodal inputs (text and images).
 -   **Trigger**: Called every time the user sends a message in the AI Chat view.
 -   **System Instruction**: `"You are a friendly and helpful assistant specializing in branding, marketing, and design. Provide concise and actionable advice."`
 -   **Output Configuration**: The response is streamed token-by-token to create a real-time, dynamic chat experience.

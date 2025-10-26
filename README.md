@@ -18,7 +18,8 @@ This is an advanced web application that uses a multi-agent AI system to generat
     -   **Brand Mockups**: Photorealistic mockups of the brand in action (business cards, websites, t-shirts).
 -   **Iterative Regeneration**: Don't like a specific element? Regenerate any part of the brand bible (logo, colors, fonts, mockups) with a simple text prompt describing the desired change.
 -   **Downloadable Brand Guide**: Export the complete brand bible as a stylish, self-contained HTML file.
--   **Integrated AI Chat**: Switch to a dedicated chat view to ask a specialized branding assistant for marketing ideas, design feedback, or any other questions.
+-   **Integrated AI Chat**: Switch to a dedicated chat view to ask a specialized branding assistant for marketing ideas or design feedback.
+    -   **Multimodal Input**: Users can attach an image to their messages to ask questions about visual content.
 -   **Error Handling**: A clean, non-intrusive toast notification system for handling API or other errors gracefully.
 
 ## Architecture

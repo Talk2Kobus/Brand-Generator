@@ -14,32 +14,77 @@ const BotIcon = () => (
     </svg>
 );
 
+// Helper to read a file and convert it to the necessary base64 formats
+const readFileAsBase64 = (file: File): Promise<{ data: string; dataUrl: string; mimeType: string }> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      // The API needs just the base64 part, without the data URL prefix
+      const data = dataUrl.split(',')[1];
+      resolve({ data, dataUrl, mimeType: file.type });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 
 export const ChatBot: React.FC<ChatBotProps> = ({ chatSession }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [attachedImage, setAttachedImage] = useState<{ data: string; dataUrl: string; mimeType: string } | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { showError } = useError();
 
   useEffect(() => {
     chatContainerRef.current?.scrollTo(0, chatContainerRef.current.scrollHeight);
   }, [messages]);
 
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+        try {
+            const imageData = await readFileAsBase64(file);
+            setAttachedImage(imageData);
+        } catch (error) {
+            showError("Failed to read the image file.");
+        }
+    }
+    // Clear the input value to allow selecting the same file again
+    if (event.target) event.target.value = '';
+  };
+
   const handleSend = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !chatSession) return;
+    if ((!input.trim() && !attachedImage) || !chatSession) return;
 
-    const userMessage: ChatMessage = { id: Date.now().toString(), text: input, sender: 'user' };
+    const userMessage: ChatMessage = { 
+      id: Date.now().toString(), 
+      text: input, 
+      sender: 'user',
+      imageUrl: attachedImage?.dataUrl,
+    };
     setMessages(prev => [...prev, userMessage]);
+
+    // Capture state before clearing it for the async operation
+    const textToSend = input;
+    const imageToSend = attachedImage;
+    
     setInput('');
+    setAttachedImage(null);
     setIsLoading(true);
 
     const botMessageId = (Date.now() + 1).toString();
     setMessages(prev => [...prev, { id: botMessageId, text: '', sender: 'bot' }]);
     
     try {
-      const stream = await chatSession.sendMessageStream({ message: input });
+      const stream = await chatSession.sendMessageStream({ 
+        message: textToSend,
+        image: imageToSend ? { data: imageToSend.data, mimeType: imageToSend.mimeType } : undefined,
+      });
       for await (const chunk of stream) {
         const chunkText = chunk.text;
         setMessages(prev =>
@@ -56,7 +101,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ chatSession }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [input, chatSession, showError]);
+  }, [input, chatSession, showError, attachedImage]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-12rem)] max-w-3xl mx-auto bg-gray-800 rounded-xl shadow-2xl border border-gray-700">
@@ -65,7 +110,8 @@ export const ChatBot: React.FC<ChatBotProps> = ({ chatSession }) => {
           <div key={index} className={`flex items-start gap-4 ${msg.sender === 'user' ? 'justify-end' : ''}`}>
             {msg.sender === 'bot' && <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center"><BotIcon /></div>}
             <div className={`p-4 rounded-xl max-w-md ${msg.sender === 'user' ? 'bg-cyan-600 text-white rounded-br-none' : 'bg-gray-700 text-gray-200 rounded-bl-none'}`}>
-              <p className="whitespace-pre-wrap">{msg.text}</p>
+              {msg.imageUrl && <img src={msg.imageUrl} alt="User attachment" className="mb-2 rounded-lg max-w-xs" />}
+              {msg.text && <p className="whitespace-pre-wrap">{msg.text}</p>}
               {isLoading && msg.sender === 'bot' && !msg.text && <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>}
             </div>
              {msg.sender === 'user' && <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center"><UserIcon /></div>}
@@ -73,7 +119,33 @@ export const ChatBot: React.FC<ChatBotProps> = ({ chatSession }) => {
         ))}
       </div>
       <div className="p-4 border-t border-gray-700">
+        {attachedImage && (
+            <div className="relative w-24 h-24 mb-2 p-1 border border-gray-600 rounded-md bg-gray-900">
+                <img src={attachedImage.dataUrl} alt="Preview" className="w-full h-full object-cover rounded" />
+                <button 
+                    onClick={() => setAttachedImage(null)} 
+                    className="absolute -top-2 -right-2 bg-gray-700 text-white rounded-full p-0.5 border-2 border-gray-800 hover:bg-red-500 transition-colors"
+                    aria-label="Remove attached image"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        )}
         <form onSubmit={handleSend} className="flex items-center gap-4">
+          <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+          <button 
+            type="button" 
+            onClick={() => fileInputRef.current?.click()} 
+            disabled={isLoading || !!attachedImage}
+            className="p-3 bg-gray-700 rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            aria-label="Attach image"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </button>
           <input
             type="text"
             value={input}
@@ -82,7 +154,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ chatSession }) => {
             className="flex-1 p-3 bg-gray-900 border border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors duration-200"
             disabled={isLoading}
           />
-          <button type="submit" disabled={isLoading || !input.trim()} className="p-3 bg-cyan-600 rounded-lg hover:bg-cyan-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors">
+          <button type="submit" disabled={isLoading || (!input.trim() && !attachedImage)} className="p-3 bg-cyan-600 rounded-lg hover:bg-cyan-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
             </svg>
