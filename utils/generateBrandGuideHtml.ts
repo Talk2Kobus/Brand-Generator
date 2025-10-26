@@ -1,7 +1,7 @@
 import type { BrandBible } from '../types';
 
-export const generateBrandGuideHtml = (brandBible: BrandBible, mission: string): string => {
-  const { colorPalette, fontPairing } = brandBible;
+export const generateBrandGuideHtml = (brandBible: BrandBible, mission: string, companyName: string): string => {
+  const { colorPalette, fontPairing, brandVoice } = brandBible;
 
   const colorsHtml = colorPalette.map(color => `
     <div style="margin-bottom: 20px; text-align: center;">
@@ -12,6 +12,14 @@ export const generateBrandGuideHtml = (brandBible: BrandBible, mission: string):
     </div>
   `).join('');
 
+  const brandVoiceHtml = brandVoice ? `
+    <h2>Brand Voice: ${brandVoice.name}</h2>
+    <div class="section-content">
+      <p>${brandVoice.description}</p>
+      <p><strong>Keywords:</strong> ${brandVoice.keywords.join(', ')}</p>
+    </div>
+  ` : '';
+
   const headerFont = fontPairing.header.replace(/ /g, '+');
   const bodyFont = fontPairing.body.replace(/ /g, '+');
 
@@ -21,7 +29,7 @@ export const generateBrandGuideHtml = (brandBible: BrandBible, mission: string):
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Brand Guide</title>
+      <title>${companyName} | Brand Guide</title>
       <link rel="preconnect" href="https://fonts.googleapis.com">
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
       <link href="https://fonts.googleapis.com/css2?family=${headerFont}:wght@700&family=${bodyFont}:wght@400;500&display=swap" rel="stylesheet">
@@ -66,6 +74,9 @@ export const generateBrandGuideHtml = (brandBible: BrandBible, mission: string):
           margin: 20px 0;
           font-style: italic;
         }
+        .section-content {
+          padding: 10px 0;
+        }
         .color-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -101,10 +112,12 @@ export const generateBrandGuideHtml = (brandBible: BrandBible, mission: string):
     </head>
     <body>
       <div class="container">
-        <h1>Brand Guide</h1>
+        <h1>${companyName} Brand Guide</h1>
         
         <h2>Mission Statement</h2>
         <blockquote>${mission}</blockquote>
+
+        ${brandVoiceHtml}
 
         <h2>Color Palette</h2>
         <div class="color-grid">

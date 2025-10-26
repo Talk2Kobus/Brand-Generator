@@ -9,6 +9,12 @@ export interface FontPairing {
   body: string;
 }
 
+export interface BrandVoice {
+  name: string;
+  description: string;
+  keywords: string[];
+}
+
 export interface BrandIdentityText {
   colorPalette: ColorInfo[];
   fontPairing: FontPairing;
@@ -18,6 +24,7 @@ export interface BrandIdentityText {
 }
 
 export interface BrandBible extends BrandIdentityText {
+  brandVoice?: BrandVoice;
   primaryLogoUrl: string;
   secondaryMarkUrls: string[];
   mockupUrls: { title: string; url: string }[];

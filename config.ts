@@ -13,6 +13,9 @@ export const MODELS = {
   // Used for suggesting creative business names.
   NAME_GENERATOR: 'gemini-2.5-flash',
 
+  // Used for analyzing the mission and generating brand voice archetypes.
+  VOICE_STRATEGIST: 'gemini-2.5-flash',
+
   // Used for the initial, complex brand bible generation. Needs strong JSON/Schema support.
   BRAND_STRATEGIST: 'gemini-2.5-pro',
   

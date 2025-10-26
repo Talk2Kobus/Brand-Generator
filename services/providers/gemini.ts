@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Chat as GeminiChat } from "@google/genai";
-import type { BrandIdentityText, BrandBible, ColorInfo, FontPairing, ChatSession, ChatMessageChunk } from '../../types';
+import type { BrandIdentityText, BrandBible, ColorInfo, FontPairing, ChatSession, ChatMessageChunk, BrandVoice } from '../../types';
 import { MODELS } from '../../config';
 
 if (!process.env.API_KEY) {
@@ -60,6 +60,25 @@ const brandIdentitySchema = {
   required: ["colorPalette", "fontPairing", "primaryLogoPrompt", "secondaryMarkPrompts", "mockupPrompts"],
 };
 
+const brandVoiceSchema = {
+    type: Type.OBJECT,
+    properties: {
+        voices: {
+            type: Type.ARRAY,
+            description: "An array of 3-5 distinct brand voice archetypes.",
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    name: { type: Type.STRING, description: "The name of the archetype, e.g., 'The Sage'." },
+                    description: { type: Type.STRING, description: "A one-sentence description of the voice." },
+                    keywords: { type: Type.ARRAY, items: { type: Type.STRING }, description: "3-4 keywords representing the voice." },
+                },
+                required: ["name", "description", "keywords"],
+            }
+        }
+    },
+    required: ["voices"]
+};
 
 export async function suggestBusinessNames(mission: string): Promise<string[]> {
     const response = await ai.models.generateContent({
@@ -82,9 +101,27 @@ export async function suggestBusinessNames(mission: string): Promise<string[]> {
     return JSON.parse(response.text).names;
 }
 
+export async function generateBrandVoiceArchetypes(mission: string, companyName: string): Promise<BrandVoice[]> {
+    const response = await ai.models.generateContent({
+        model: MODELS.VOICE_STRATEGIST,
+        contents: `Based on the company name "${companyName}" and its mission "${mission}", generate 3 distinct brand voice archetypes. For each, provide a name (e.g., 'The Sage'), a one-sentence description, and 3-4 keywords (e.g., 'Wise, Authoritative, Guiding, Trustworthy'). Output this as a structured JSON array.`,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: brandVoiceSchema,
+        },
+    });
+    return JSON.parse(response.text).voices;
+}
 
-export async function generateBrandIdentity(mission: string, companyName: string): Promise<BrandIdentityText> {
-  const prompt = `You are a world-class branding expert. Based on the following company name and mission, generate a complete brand identity bible. Company Name: "${companyName}". The mission is: "${mission}"`;
+export async function generateBrandIdentity(mission: string, companyName: string, brandVoice?: BrandVoice): Promise<BrandIdentityText> {
+  const voiceContext = brandVoice 
+    ? `The brand's chosen voice is '${brandVoice.name}': ${brandVoice.description} (Keywords: ${brandVoice.keywords.join(', ')}). All generated content should reflect this personality.`
+    : "No specific brand voice was chosen, so use a generally professional and appealing tone.";
+  
+  const prompt = `You are a world-class branding expert. Based on the following company name, mission, and brand voice, generate a complete brand identity bible. 
+  Company Name: "${companyName}". 
+  Mission: "${mission}".
+  Brand Voice: ${voiceContext}`;
   
   const response = await ai.models.generateContent({
     model: MODELS.BRAND_STRATEGIST,
@@ -129,7 +166,6 @@ class GeminiChatWrapper implements ChatSession {
     this.geminiChat = chat;
   }
 
-  // FIX: Changed from an async generator (`async *`) to an async function (`async`) that returns an async iterable. This ensures the return type is `Promise<AsyncIterable<ChatMessageChunk>>`, matching the `ChatSession` interface.
   async sendMessageStream(params: { message: string }): Promise<AsyncIterable<ChatMessageChunk>> {
     const stream = await this.geminiChat.sendMessageStream({ message: params.message });
     return (async function*(): AsyncIterable<ChatMessageChunk> {
@@ -152,13 +188,21 @@ export function createChat(): ChatSession {
 
 // --- REGENERATION FUNCTIONS ---
 
-async function regeneratePrompt(mission: string, companyName: string, currentIdentity: BrandBible, changeRequest: string, itemDescription: string): Promise<string> {
-    const context = `
+function getContext(mission: string, companyName: string, currentIdentity: BrandBible): string {
+    const voiceContext = currentIdentity.brandVoice
+        ? `Brand Voice: '${currentIdentity.brandVoice.name}' (${currentIdentity.brandVoice.keywords.join(', ')})`
+        : '';
+    return `
       Company Name: "${companyName}"
       Original Mission: "${mission}"
       Current Colors: ${currentIdentity.colorPalette.map(c => c.name).join(', ')}
       Current Fonts: Header - ${currentIdentity.fontPairing.header}, Body - ${currentIdentity.fontPairing.body}
+      ${voiceContext}
     `;
+}
+
+async function regeneratePrompt(mission: string, companyName: string, currentIdentity: BrandBible, changeRequest: string, itemDescription: string): Promise<string> {
+    const context = getContext(mission, companyName, currentIdentity);
     const response = await ai.models.generateContent({
         model: MODELS.CREATIVE_DIRECTOR,
         contents: `You are a creative director. Based on the following context, regenerate an image prompt for a ${itemDescription}. The user's specific change request is: "${changeRequest}".
@@ -176,9 +220,12 @@ export const regenerateMockupPrompt = (mission: string, companyName: string, cur
 
 
 export async function regenerateColorPalette(mission: string, companyName: string, currentIdentity: BrandBible, changeRequest: string): Promise<ColorInfo[]> {
+    const context = getContext(mission, companyName, currentIdentity);
     const response = await ai.models.generateContent({
         model: MODELS.DESIGN_SPECIALIST,
-        contents: `Based on the company "${companyName}" with mission "${mission}" and their existing brand identity (fonts: ${currentIdentity.fontPairing.header}/${currentIdentity.fontPairing.body}), regenerate the 5-color palette. The user has requested: "${changeRequest}". Output JSON that adheres to the schema.`,
+        contents: `Based on the brand context, regenerate the 5-color palette. The user has requested: "${changeRequest}".
+        Context: ${context}
+        Output JSON that adheres to the schema.`,
         config: {
             responseMimeType: "application/json",
             responseSchema: {type: Type.OBJECT, properties: { colorPalette: colorPaletteSchema }, required: ["colorPalette"]},
@@ -188,9 +235,12 @@ export async function regenerateColorPalette(mission: string, companyName: strin
 }
 
 export async function regenerateFontPairing(mission: string, companyName: string, currentIdentity: BrandBible, changeRequest: string): Promise<FontPairing> {
+    const context = getContext(mission, companyName, currentIdentity);
     const response = await ai.models.generateContent({
         model: MODELS.DESIGN_SPECIALIST,
-        contents: `Based on the company "${companyName}" with mission "${mission}" and their existing brand identity (colors: ${currentIdentity.colorPalette.map(c=>c.name).join(', ')}), regenerate the Google Font pairing. The user has requested: "${changeRequest}". Output JSON that adheres to the schema.`,
+        contents: `Based on the brand context, regenerate the Google Font pairing. The user has requested: "${changeRequest}".
+        Context: ${context}
+        Output JSON that adheres to the schema.`,
         config: {
             responseMimeType: "application/json",
             responseSchema: {type: Type.OBJECT, properties: { fontPairing: fontPairingSchema }, required: ["fontPairing"]},

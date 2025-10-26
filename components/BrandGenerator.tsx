@@ -3,6 +3,7 @@ import {
   generateBrandIdentity,
   generateImage,
   suggestBusinessNames,
+  generateBrandVoiceArchetypes,
   regenerateLogoPrompt,
   regenerateMockupPrompt,
   regenerateColorPalette,
@@ -11,7 +12,7 @@ import {
 import { checkDomainAvailability, getSuggestedTld } from '../services/domainService';
 import type { DomainAvailability } from '../services/domainService';
 import { generateBrandGuideHtml } from '../utils/generateBrandGuideHtml';
-import type { BrandBible, RegenerationRequest } from '../types';
+import type { BrandBible, BrandVoice, RegenerationRequest } from '../types';
 import { useError } from '../contexts/ErrorContext';
 
 import { ColorPalette } from './ColorPalette';
@@ -24,7 +25,7 @@ interface BrandGeneratorProps {
   onBrandGenerated: (brandBible: BrandBible) => void;
 }
 
-type Stage = 'mission' | 'names' | 'generating' | 'done';
+type Stage = 'mission' | 'names' | 'voice' | 'generating' | 'done';
 type DomainStatus = 'idle' | 'checking' | 'checked';
 
 const LoadingSpinner: React.FC<{ size?: string }> = ({ size = 'h-5 w-5' }) => (
@@ -46,6 +47,9 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
   const [selectedTld, setSelectedTld] = useState('.com');
 
   const [selectedName, setSelectedName] = useState('');
+  const [brandVoices, setBrandVoices] = useState<BrandVoice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<BrandVoice | undefined>(undefined);
+
   const [brandBible, setBrandBible] = useState<BrandBible | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [progressMessage, setProgressMessage] = useState('');
@@ -57,12 +61,11 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
   const { showError } = useError();
 
   useEffect(() => {
-    // Fetch suggested TLD on component mount
     getSuggestedTld().then(tld => {
         if (tld && !TLD_OPTIONS.includes(tld)) {
-            TLD_OPTIONS.unshift(tld); // Add to the top if not present
+            TLD_OPTIONS.unshift(tld);
         }
-        setSelectedTld(tld);
+        setSelectedTld(tld || '.com');
     });
   }, []);
 
@@ -71,6 +74,16 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
       onBrandGenerated(brandBible);
     }
   }, [brandBible, onBrandGenerated]);
+
+  const handleMissionSubmit = () => {
+    if (selectedName.trim()) {
+      // User provided a name, skip to voice selection
+      handleNameSelection(selectedName.trim());
+    } else {
+      // User did not provide a name, go to name suggestions
+      handleSuggestNames();
+    }
+  };
 
   const handleSuggestNames = async () => {
     setIsLoading(true);
@@ -110,13 +123,32 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
       showError("Please select or enter a business name.");
       return;
     }
+    const finalName = name.trim();
+    setSelectedName(finalName);
+    setIsLoading(true);
+    setProgressMessage("Defining brand personality...");
+    try {
+      const voices = await generateBrandVoiceArchetypes(mission, finalName);
+      setBrandVoices(voices);
+      setStage('voice');
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to generate brand voices. Proceeding without this step.");
+      // If voice generation fails, skip to final generation
+      await handleGenerateBrand(finalName, undefined);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGenerateBrand = async (name: string, voice: BrandVoice | undefined) => {
     setSelectedName(name);
+    setSelectedVoice(voice);
     setStage('generating');
     setIsLoading(true);
 
     try {
       setProgressMessage("Generating brand identity text...");
-      const identityText = await generateBrandIdentity(mission, name);
+      const identityText = await generateBrandIdentity(mission, name, voice);
 
       setProgressMessage("Creating primary logo...");
       const primaryLogoUrl = await generateImage(identityText.primaryLogoPrompt);
@@ -140,6 +172,7 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
 
       const finalBible: BrandBible = {
         ...identityText,
+        brandVoice: voice,
         primaryLogoUrl,
         secondaryMarkUrls,
         mockupUrls,
@@ -221,10 +254,11 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
   };
 
   const handleDownload = () => {
-    if (!brandBible || !mission) return;
-    const htmlContent = generateBrandGuideHtml(brandBible, mission);
+    if (!brandBible || !mission || !selectedName) return;
+    const htmlContent = generateBrandGuideHtml(brandBible, mission, selectedName);
     const blob = new Blob([htmlContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
     a.href = url;
     a.download = `${selectedName.toLowerCase().replace(/ /g, '_')}_brand_guide.html`;
     document.body.appendChild(a);
@@ -240,11 +274,13 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
     setDomainChecks({});
     setDomainStatus('idle');
     setSelectedName('');
+    setBrandVoices([]);
+    setSelectedVoice(undefined);
     setBrandBible(null);
   };
 
   const renderContent = () => {
-    if (isLoading && (stage === 'generating' || stage === 'mission')) {
+    if (isLoading) {
       return (
         <div className="text-center p-12 bg-gray-800 rounded-lg max-w-lg mx-auto">
           <div className="flex justify-center items-center mb-4"><LoadingSpinner size="w-8 h-8" /></div>
@@ -259,17 +295,32 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
         return (
           <div className="max-w-2xl mx-auto">
             <h2 className="text-3xl font-bold text-center text-white mb-2">Let's Build Your Brand</h2>
-            <p className="text-lg text-center text-gray-400 mb-8">Start by describing your company's mission or business idea.</p>
-            <form onSubmit={(e) => { e.preventDefault(); handleSuggestNames(); }} className="bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700">
-              <textarea
-                value={mission}
-                onChange={(e) => setMission(e.target.value)}
-                placeholder="e.g., 'An eco-friendly subscription box for house plants that helps people connect with nature.'"
-                className="w-full h-40 p-4 bg-gray-900 border border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors duration-200 resize-none mb-4 text-lg"
-                disabled={isLoading}
-              />
-              <button type="submit" disabled={isLoading || !mission.trim()} className="w-full flex items-center justify-center p-4 text-lg font-bold bg-cyan-600 rounded-lg hover:bg-cyan-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors text-white">
-                {isLoading && stage === 'mission' ? <><LoadingSpinner /> <span className="ml-2">Working...</span></> : 'Suggest Business Names'}
+            <p className="text-lg text-center text-gray-400 mb-8">Start with your mission. If you already have a name, add it too.</p>
+            <form onSubmit={(e) => { e.preventDefault(); handleMissionSubmit(); }} className="bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700 space-y-6">
+              <div>
+                <label htmlFor="mission" className="block text-sm font-medium text-gray-300 mb-2">Company Mission or Business Idea*</label>
+                <textarea
+                  id="mission"
+                  value={mission}
+                  onChange={(e) => setMission(e.target.value)}
+                  placeholder="e.g., 'An eco-friendly subscription box for house plants that helps people connect with nature.'"
+                  className="w-full h-32 p-4 bg-gray-900 border border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors duration-200 resize-none text-lg"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="companyName" className="block text-sm font-medium text-gray-300 mb-2">Company Name (Optional)</label>
+                <input
+                  id="companyName"
+                  type="text"
+                  value={selectedName}
+                  onChange={(e) => setSelectedName(e.target.value)}
+                  placeholder="e.g., 'Leafy Life'"
+                  className="w-full p-4 bg-gray-900 border border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors duration-200 text-lg"
+                />
+              </div>
+              <button type="submit" disabled={!mission.trim()} className="w-full flex items-center justify-center p-4 text-lg font-bold bg-cyan-600 rounded-lg hover:bg-cyan-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors text-white">
+                {selectedName.trim() ? 'Next: Define Brand Voice' : 'Next: Suggest Names'} &rarr;
               </button>
             </form>
           </div>
@@ -330,7 +381,7 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
                 onChange={(e) => setSelectedName(e.target.value)}
                 className="flex-1 p-3 bg-gray-900 border border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors duration-200"
               />
-              <button type="submit" className="px-6 py-3 font-bold bg-cyan-600 rounded-lg hover:bg-cyan-700 disabled:bg-gray-600 text-white" disabled={!selectedName.trim()}>Generate Brand</button>
+              <button type="submit" className="px-6 py-3 font-bold bg-cyan-600 rounded-lg hover:bg-cyan-700 disabled:bg-gray-600 text-white" disabled={!selectedName.trim()}>Next: Define Voice &rarr;</button>
             </form>
             <button onClick={() => setStage('mission')} className="text-sm text-gray-400 hover:text-cyan-400 transition-colors mt-4 mx-auto block">
                 &larr; Back to mission
@@ -338,6 +389,31 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
           </div>
         );
         
+      case 'voice':
+        return (
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-3xl font-bold text-center text-white mb-2">Define Your Brand's Voice</h2>
+            <p className="text-lg text-center text-gray-400 mb-8">Choose the personality that best fits <span className="font-bold text-cyan-400">{selectedName}</span>. This will influence your entire brand identity.</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {brandVoices.map((voice) => (
+                <div key={voice.name} className="bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 flex flex-col text-center">
+                  <h3 className="text-2xl font-bold text-white mb-2">{voice.name}</h3>
+                  <p className="text-gray-300 flex-grow">{voice.description}</p>
+                  <div className="my-4">
+                    {voice.keywords.map(kw => <span key={kw} className="inline-block bg-gray-700 rounded-full px-3 py-1 text-sm font-semibold text-gray-300 mr-2 mb-2">{kw}</span>)}
+                  </div>
+                  <button onClick={() => handleGenerateBrand(selectedName, voice)} className="mt-auto w-full p-3 font-bold bg-cyan-600 rounded-lg hover:bg-cyan-700 text-white transition-colors">Select this Voice</button>
+                </div>
+              ))}
+            </div>
+             <div className="text-center mt-8">
+                <button onClick={() => handleGenerateBrand(selectedName, undefined)} className="text-gray-400 hover:text-cyan-400 transition-colors">
+                    Skip and Generate Brand &rarr;
+                </button>
+             </div>
+          </div>
+        );
+
       case 'done':
         if (!brandBible) return null;
         return (
@@ -345,6 +421,11 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
             <div className="text-center">
               <h2 className="text-4xl font-bold text-white">Your Brand Bible for <span className="text-cyan-400">{selectedName}</span></h2>
               <blockquote className="text-lg text-gray-400 mt-4 max-w-3xl mx-auto border-l-4 border-cyan-700 pl-4 italic">"{mission}"</blockquote>
+              {brandBible.brandVoice && (
+                <div className="mt-4 text-gray-300">
+                    <strong>Brand Voice:</strong> {brandBible.brandVoice.name} <span className="text-gray-400">({brandBible.brandVoice.keywords.join(', ')})</span>
+                </div>
+              )}
               <div className="mt-6 flex justify-center items-center gap-4">
                   <button onClick={handleDownload} className="px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors">Download Brand Guide</button>
                    <button onClick={handleStartOver} className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors">Start Over</button>
@@ -380,8 +461,6 @@ export const BrandGenerator: React.FC<BrandGeneratorProps> = ({ onBrandGenerated
         return null;
     }
   };
-  
-  const a = document.createElement('a'); // define 'a' here
   
   return (
     <>

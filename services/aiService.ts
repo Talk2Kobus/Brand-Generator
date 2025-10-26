@@ -28,6 +28,7 @@ if (!providers[AI_PROVIDER]) {
  */
 export const {
   suggestBusinessNames,
+  generateBrandVoiceArchetypes,
   generateBrandIdentity,
   generateImage,
   createChat,

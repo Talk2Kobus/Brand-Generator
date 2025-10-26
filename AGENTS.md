@@ -18,21 +18,35 @@ This agent provides creative business name ideas based on the user's initial con
 
 ---
 
-### Agent 2: The Brand Strategist
+### Agent 2: The Voice Strategist
 
-This is the primary agent responsible for creating the foundational, text-based brand identity.
+This agent defines the brand's personality by creating distinct voice archetypes.
+
+-   **Model**: `VOICE_STRATEGIST` (configurable in `config.ts`, default: `gemini-2.5-flash`)
+-   **Role**: To analyze the company's mission and name to generate several brand voice archetypes for the user to choose from.
+-   **Trigger**: Called after the user selects a business name.
+-   **Core Prompt**: `"Based on the company name '[COMPANY_NAME]' and its mission '[USER_MISSION]', generate 3 distinct brand voice archetypes. For each, provide a name (e.g., 'The Sage'), a one-sentence description, and 3-4 keywords (e.g., 'Wise, Authoritative, Guiding, Trustworthy'). Output this as a structured JSON array."`
+-   **Output Configuration**:
+    -   `responseMimeType`: `"application/json"`
+    -   `responseSchema`: A schema defining an array of voice objects, each with a name, description, and keywords.
+
+---
+
+### Agent 3: The Brand Strategist
+
+This is the primary agent responsible for creating the foundational, text-based brand identity, now informed by the brand's voice.
 
 -   **Model**: `BRAND_STRATEGIST` (configurable in `config.ts`, default: `gemini-2.5-pro`)
--   **Role**: To interpret the user's company mission and name, and generate a comprehensive, structured JSON object containing all the textual elements of the brand bible.
--   **Trigger**: Called once when the user clicks the initial "Generate Brand" button.
--   **Core Prompt**: `"You are a world-class branding expert. Based on the following company name and mission, generate a complete brand identity bible. Company Name: '[USER_NAME]'. The mission is: '[USER_MISSION]'"`
+-   **Role**: To interpret the user's company mission, name, and chosen brand voice to generate a comprehensive, structured JSON object containing all the textual elements of the brand bible.
+-   **Trigger**: Called after the user selects a brand voice (or skips the step).
+-   **Core Prompt**: `"You are a world-class branding expert. Based on the following company name, mission, and brand voice, generate a complete brand identity bible. Company Name: '[USER_NAME]'. Mission: '[USER_MISSION]'. Brand Voice: '[VOICE_CONTEXT]'"`
 -   **Output Configuration**:
     -   `responseMimeType`: `"application/json"`
     -   `responseSchema`: A detailed schema that enforces the structure of the output, including color palettes, font pairings, and various image prompts.
 
 ---
 
-### Agent 3: The Visual Artist
+### Agent 4: The Visual Artist
 
 This agent is responsible for turning text prompts into high-quality images.
 
@@ -44,33 +58,33 @@ This agent is responsible for turning text prompts into high-quality images.
 
 ---
 
-### Agent 4: The Creative Director
+### Agent 5: The Creative Director
 
 This agent handles the iterative refinement of visual elements by generating new prompts based on user feedback.
 
 -   **Model**: `CREATIVE_DIRECTOR` (configurable in `config.ts`, default: `gemini-2.5-flash`)
--   **Role**: To quickly regenerate a single image prompt for a logo or mockup based on a user's change request and the existing brand context.
+-   **Role**: To quickly regenerate a single image prompt for a logo or mockup based on a user's change request and the existing brand context (including brand voice).
 -   **Trigger**: Called when a user submits the "Regenerate" form for a specific visual asset.
 -   **Core Prompt**: `"You are a creative director. Based on the following context, regenerate an image prompt for a [ITEM_DESCRIPTION]. The user's specific change request is: '[USER_REQUEST]'. Context: [BRAND_BIBLE_CONTEXT] Output only the new, detailed, and photorealistic image prompt."`
 -   **Output Configuration**: Outputs a plain text string (the new prompt).
 
 ---
 
-### Agent 5: The Design Specialist
+### Agent 6: The Design Specialist
 
 This agent is a specialized version of the Brand Strategist, focused on regenerating structured data like colors and fonts.
 
 -   **Model**: `DESIGN_SPECIALIST` (configurable in `config.ts`, default: `gemini-2.5-pro`)
--   **Role**: To regenerate the `colorPalette` or `fontPairing` based on user feedback, ensuring the output remains in the correct JSON format.
+-   **Role**: To regenerate the `colorPalette` or `fontPairing` based on user feedback and the full brand context, ensuring the output remains in the correct JSON format.
 -   **Trigger**: Called when a user requests to regenerate the Color Palette or Typography.
--   **Core Prompt**: `"Based on the company '[COMPANY_NAME]' with mission '[USER_MISSION]' and their existing brand identity, regenerate the [color palette / font pairing]. The user has requested: '[USER_REQUEST]'. Output JSON that adheres to the schema."`
+-   **Core Prompt**: `"Based on the brand context, regenerate the [color palette / font pairing]. The user has requested: '[USER_REQUEST]'. Context: [BRAND_BIBLE_CONTEXT]. Output JSON that adheres to the schema."`
 -   **Output Configuration**:
     -   `responseMimeType`: `"application/json"`
     -   `responseSchema`: The specific sub-schema for either `colorPalette` or `fontPairing`.
 
 ---
 
-### Agent 6: The Branding Assistant
+### Agent 7: The Branding Assistant
 
 This agent powers the conversational AI chat feature, providing real-time advice and answering questions.
 
